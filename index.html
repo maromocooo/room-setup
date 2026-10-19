@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Room Setup</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <script>
+        // Apply the saved theme before first paint to avoid a flash.
+        try {
+            const theme = localStorage.getItem('room-setup.theme');
+            if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+        } catch {}
+    </script>
+</head>
+<body>
+<div class="app">
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark"><i data-icon="logo"></i></span>
+            <span class="brand-name">Room Setup</span>
+        </div>
+
+        <div class="segmented view-switch" role="tablist" data-i18n-aria-label="view.label">
+            <button type="button" role="tab" data-view="plan" aria-selected="true"><i data-icon="plan"></i><span data-i18n="view.plan"></span></button>
+            <button type="button" role="tab" data-view="room" aria-selected="false"><i data-icon="cube"></i><span data-i18n="view.room"></span></button>
+        </div>
+
+        <div class="topbar-actions">
+            <button type="button" class="btn ghost" id="openProject"><i data-icon="open"></i><span data-i18n="project.open"></span></button>
+            <button type="button" class="btn" id="saveProject"><i data-icon="save"></i><span data-i18n="project.save"></span></button>
+            <input type="file" id="openProjectInput" accept=".zip,application/zip" hidden>
+            <span class="topbar-divider"></span>
+            <select id="languageSelect" class="select compact" data-i18n-aria-label="language.label">
+                <option value="ja" lang="ja">日本語</option>
+                <option value="en" lang="en">English</option>
+            </select>
+            <button type="button" class="icon-btn" id="themeToggle" data-i18n-title="theme.toggle" data-i18n-aria-label="theme.toggle"><i data-icon="moon"></i></button>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <section class="stage">
+            <!-- 2D plan -->
+            <div class="view" id="planView" data-active="true">
+                <canvas id="planCanvas"></canvas>
+
+                <div class="float float-top-left toolbar" role="toolbar" data-i18n-aria-label="plan.tools">
+                    <button type="button" class="tool" data-tool="wall" data-i18n-title="plan.tool.wall"><i data-icon="wall"></i></button>
+                    <button type="button" class="tool" data-tool="select" data-i18n-title="plan.tool.select"><i data-icon="select"></i></button>
+                    <button type="button" class="tool" data-tool="erase" data-i18n-title="plan.tool.erase"><i data-icon="erase"></i></button>
+                    <span class="toolbar-sep"></span>
+                    <button type="button" class="tool" id="undo" data-i18n-title="plan.undo"><i data-icon="undo"></i></button>
+                    <button type="button" class="tool" id="redo" data-i18n-title="plan.redo"><i data-icon="redo"></i></button>
+                    <button type="button" class="tool" id="zoomFit" data-i18n-title="plan.fit"><i data-icon="fit"></i></button>
+                </div>
+
+                <div class="float float-top-right toolbar compact-fields">
+                    <label class="inline-field">
+                        <span data-i18n="plan.grid"></span>
+                        <select id="gridSize" class="select compact">
+                            <option value="1">1 cm</option>
+                            <option value="5">5 cm</option>
+                            <option value="10" selected>10 cm</option>
+                            <option value="25">25 cm</option>
+                            <option value="50">50 cm</option>
+                        </select>
+                    </label>
+                    <label class="inline-field">
+                        <span data-i18n="plan.units"></span>
+                        <select id="unitSelect" class="select compact">
+                            <option value="cm">cm</option>
+                            <option value="m">m</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="float float-bottom-left hud" id="planHud"></div>
+                <div class="plan-empty" id="planEmpty">
+                    <i data-icon="wall"></i>
+                    <p data-i18n="plan.empty.title"></p>
+                    <span data-i18n="plan.empty.body"></span>
+                </div>
+            </div>
+
+            <!-- 3D room -->
+            <div class="view" id="roomView" data-active="false">
+                <div class="room-canvas" id="roomCanvas"></div>
+
+                <div class="float float-top-left toolbar" role="toolbar">
+                    <button type="button" class="tool" data-camera="orbit" data-i18n-title="room.camera.orbit"><i data-icon="orbit"></i></button>
+                    <button type="button" class="tool" data-camera="top" data-i18n-title="room.camera.top"><i data-icon="top"></i></button>
+                    <button type="button" class="tool" data-camera="inside" data-i18n-title="room.camera.inside"><i data-icon="person"></i></button>
+                    <span class="toolbar-sep"></span>
+                    <button type="button" class="tool" data-walls="solid" data-i18n-title="room.walls.solid"><i data-icon="solid"></i></button>
+                    <button type="button" class="tool" data-walls="ghost" data-i18n-title="room.walls.ghost"><i data-icon="ghost"></i></button>
+                    <button type="button" class="tool" data-walls="hidden" data-i18n-title="room.walls.hidden"><i data-icon="eye-off"></i></button>
+                    <span class="toolbar-sep"></span>
+                    <button type="button" class="tool" data-gizmo="translate" data-i18n-title="room.gizmo.move"><i data-icon="move"></i></button>
+                    <button type="button" class="tool" data-gizmo="rotate" data-i18n-title="room.gizmo.rotate"><i data-icon="rotate"></i></button>
+                </div>
+
+                <div class="float float-top-right toolbar compact-fields">
+                    <label class="inline-field">
+                        <i data-icon="sun"></i>
+                        <select id="timeOfDayQuick" class="select compact" data-i18n-aria-label="lights.time">
+                            <option value="morning" data-i18n="time.morning"></option>
+                            <option value="day" data-i18n="time.day"></option>
+                            <option value="evening" data-i18n="time.evening"></option>
+                            <option value="night" data-i18n="time.night"></option>
+                        </select>
+                    </label>
+                    <label class="inline-field" data-i18n-title="room.brightness">
+                        <i data-icon="brightness"></i>
+                        <input type="range" id="brightness" min="0.4" max="2" step="0.05" value="1" data-i18n-aria-label="room.brightness">
+                    </label>
+                </div>
+
+                <div class="float float-bottom-left hud" data-i18n="room.hint"></div>
+                <div class="plan-empty" id="roomEmpty">
+                    <i data-icon="cube"></i>
+                    <p data-i18n="room.empty.title"></p>
+                    <span data-i18n="room.empty.body"></span>
+                </div>
+            </div>
+        </section>
+
+        <aside class="sidebar">
+            <nav class="tabs" role="tablist">
+                <button type="button" role="tab" data-tab="room" aria-selected="true" data-i18n="tab.room"></button>
+                <button type="button" role="tab" data-tab="finish" aria-selected="false" data-i18n="tab.finish"></button>
+                <button type="button" role="tab" data-tab="lights" aria-selected="false" data-i18n="tab.lights"></button>
+                <button type="button" role="tab" data-tab="furniture" aria-selected="false">
+                    <span data-i18n="tab.furniture"></span><span class="tab-badge" id="furnitureBadge" hidden></span>
+                </button>
+            </nav>
+
+            <!-- Room -->
+            <div class="panel" data-panel="room">
+                <section class="card inspector-card" id="openingInspector" hidden>
+                    <header class="card-header">
+                        <h2 id="openingTitle"></h2>
+                        <button type="button" class="icon-btn small" id="openingClose" data-i18n-aria-label="inspector.deselect"><i data-icon="close"></i></button>
+                    </header>
+                    <label class="field"><span data-i18n="opening.style"></span>
+                        <select class="select" id="openingStyle"></select></label>
+                    <div class="field" id="openingColorField">
+                        <span class="field-label" data-i18n="opening.color"></span>
+                        <div class="color-chips" id="openingColors" role="radiogroup" data-i18n-aria-label="opening.color"></div>
+                    </div>
+                    <div class="field-grid three">
+                        <label class="field"><span data-i18n="dim.width"></span>
+                            <span class="input-unit"><input type="number" id="openingWidth" min="20" step="1"><em>cm</em></span></label>
+                        <label class="field"><span data-i18n="dim.height"></span>
+                            <span class="input-unit"><input type="number" id="openingHeight" min="20" step="1"><em>cm</em></span></label>
+                        <label class="field" id="openingSillField"><span data-i18n="opening.sill"></span>
+                            <span class="input-unit"><input type="number" id="openingSill" min="0" step="1"><em>cm</em></span></label>
+                    </div>
+                    <label class="field"><span data-i18n="opening.offset"></span>
+                        <span class="input-unit"><input type="number" id="openingOffset" min="0" step="1"><em>cm</em></span></label>
+                    <label class="field" id="openingOpenField"><span data-i18n="opening.open"></span>
+                        <span class="range-with-value"><input type="range" id="openingOpen" min="0" max="100" step="1"><output class="value-chip" id="openingOpenValue"></output></span>
+                    </label>
+                    <div class="button-row" id="openingDoorControls">
+                        <button type="button" class="btn" id="openingFlipHinge"><span id="openingFlipHingeLabel"></span></button>
+                        <button type="button" class="btn" id="openingFlipSide"><span data-i18n="opening.flipSide"></span></button>
+                    </div>
+                    <button type="button" class="btn danger" id="openingDelete"><i data-icon="erase"></i><span data-i18n="inspector.delete"></span></button>
+                </section>
+
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="room.templates"></h2></header>
+                    <div class="template-grid">
+                        <button type="button" class="template" data-template="rectangle">
+                            <svg viewBox="0 0 64 48" aria-hidden="true"><rect x="6" y="6" width="52" height="36" rx="2"/></svg>
+                            <span data-i18n="room.template.rectangle"></span>
+                        </button>
+                        <button type="button" class="template" data-template="l-shape">
+                            <svg viewBox="0 0 64 48" aria-hidden="true"><path d="M6 6h28v14h24v22H6z"/></svg>
+                            <span data-i18n="room.template.lShape"></span>
+                        </button>
+                    </div>
+                    <div class="field-grid two">
+                        <label class="field"><span data-i18n="room.width"></span>
+                            <span class="input-unit"><input type="number" id="templateWidth" value="360" min="100" max="2000" step="10"><em>cm</em></span></label>
+                        <label class="field"><span data-i18n="room.depth"></span>
+                            <span class="input-unit"><input type="number" id="templateDepth" value="270" min="100" max="2000" step="10"><em>cm</em></span></label>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="room.ceiling"></h2><output id="ceilingValue" class="value-chip"></output></header>
+                    <input type="range" id="ceilingHeight" min="200" max="400" step="5" value="240" data-i18n-aria-label="room.ceiling">
+                </section>
+
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="opening.title"></h2></header>
+                    <div class="opening-presets" id="openingPresets"></div>
+                    <p class="hint" data-i18n="opening.hint"></p>
+                </section>
+
+
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="room.walls"></h2><span class="muted" id="roomSummary"></span></header>
+                    <ul class="list" id="wallList"></ul>
+                    <p class="empty" id="wallEmpty" data-i18n="room.walls.empty"></p>
+                </section>
+
+                <button type="button" class="btn danger subtle block" id="clearAll"><i data-icon="erase"></i><span data-i18n="room.clear"></span></button>
+            </div>
+
+            <!-- Finishes -->
+            <div class="panel" data-panel="finish" hidden>
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="finish.floor"></h2><output class="value-chip" id="floorScaleValue"></output></header>
+                    <div class="swatches" id="floorSwatches" role="radiogroup" data-i18n-aria-label="finish.floor"></div>
+                    <label class="field"><span data-i18n="finish.scale"></span>
+                        <input type="range" id="floorScale" min="0.25" max="4" step="0.05" value="1"></label>
+                </section>
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="finish.wall"></h2><output class="value-chip" id="wallScaleValue"></output></header>
+                    <div class="swatches" id="wallSwatches" role="radiogroup" data-i18n-aria-label="finish.wall"></div>
+                    <label class="field"><span data-i18n="finish.scale"></span>
+                        <input type="range" id="wallScale" min="0.25" max="4" step="0.05" value="1"></label>
+                    <div class="segmented small block" id="wallScope">
+                        <button type="button" data-scope="all" aria-pressed="true" data-i18n="finish.scope.all"></button>
+                        <button type="button" data-scope="selected" aria-pressed="false" data-i18n="finish.scope.selected"></button>
+                    </div>
+                    <p class="hint" data-i18n="finish.scope.hint"></p>
+                </section>
+                <p class="hint center" data-i18n="finish.pasteHint"></p>
+                <input type="file" id="customTextureInput" accept="image/*" hidden>
+            </div>
+
+            <!-- Lighting -->
+            <div class="panel" data-panel="lights" hidden>
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="lights.time"></h2></header>
+                    <div class="segmented block small" id="timeOfDay">
+                        <button type="button" data-time="morning" data-i18n="time.morning"></button>
+                        <button type="button" data-time="day" data-i18n="time.day"></button>
+                        <button type="button" data-time="evening" data-i18n="time.evening"></button>
+                        <button type="button" data-time="night" data-i18n="time.night"></button>
+                    </div>
+                    <p class="hint" data-i18n="lights.timeHint"></p>
+                </section>
+
+                <section class="card inspector-card" id="lightInspector" hidden>
+                    <header class="card-header">
+                        <h2 id="lightTitle"></h2>
+                        <button type="button" class="icon-btn small" id="lightClose" data-i18n-aria-label="inspector.deselect"><i data-icon="close"></i></button>
+                    </header>
+                    <p class="muted" id="lightAttached" hidden></p>
+                    <label class="toggle">
+                        <input type="checkbox" id="lightOn">
+                        <span class="toggle-track"></span>
+                        <span class="toggle-text"><strong data-i18n="light.on"></strong></span>
+                    </label>
+                    <label class="field"><span data-i18n="light.lumens"></span>
+                        <span class="range-with-value"><input type="range" id="lightLumens" min="100" max="6000" step="10"><output class="value-chip" id="lightLumensValue"></output></span></label>
+                    <label class="field"><span data-i18n="light.kelvin"></span>
+                        <span class="range-with-value"><input type="range" id="lightKelvin" min="2200" max="6500" step="50" class="kelvin-range"><output class="value-chip" id="lightKelvinValue"></output></span></label>
+                    <div class="field-grid three">
+                        <label class="field"><span id="lightXLabel">X</span><span class="input-unit"><input type="number" id="lightX" step="1"><em>cm</em></span></label>
+                        <label class="field"><span id="lightYLabel">Y</span><span class="input-unit"><input type="number" id="lightY" step="1"><em>cm</em></span></label>
+                        <label class="field"><span id="lightHeightLabel"></span><span class="input-unit"><input type="number" id="lightHeight" min="0" step="1"><em>cm</em></span></label>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="lightShadows">
+                        <span class="toggle-track"></span>
+                        <span class="toggle-text"><strong data-i18n="light.shadows"></strong><small data-i18n="light.shadowsHint"></small></span>
+                    </label>
+                    <button type="button" class="btn danger" id="lightDelete"><i data-icon="erase"></i><span data-i18n="inspector.delete"></span></button>
+                </section>
+
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="lights.add"></h2></header>
+                    <div class="opening-presets" id="lightPresets"></div>
+                    <p class="hint" data-i18n="lights.hint"></p>
+                </section>
+
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="lights.placed"></h2></header>
+                    <ul class="list" id="lightList"></ul>
+                    <p class="empty" id="lightEmpty" data-i18n="lights.empty"></p>
+                </section>
+            </div>
+
+            <!-- Furniture -->
+            <div class="panel" data-panel="furniture" hidden>
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="gen.title"></h2></header>
+                    <div class="dropzone" id="dropzone" tabindex="0" role="button" data-i18n-aria-label="gen.drop.label">
+                        <img id="dropPreview" alt="" hidden>
+                        <div class="dropzone-empty" id="dropEmpty">
+                            <i data-icon="image"></i>
+                            <strong data-i18n="gen.drop.title"></strong>
+                            <span data-i18n="gen.drop.body"></span>
+                        </div>
+                        <button type="button" class="icon-btn small dropzone-clear" id="dropClear" hidden data-i18n-aria-label="gen.drop.clear"><i data-icon="close"></i></button>
+                    </div>
+                    <input type="file" id="furnitureInput" accept="image/*" hidden>
+
+                    <div class="field-grid three">
+                        <label class="field"><span data-i18n="dim.width"></span>
+                            <span class="input-unit"><input type="number" id="dimWidth" value="80" min="1" max="1000"><em>cm</em></span></label>
+                        <label class="field"><span data-i18n="dim.depth"></span>
+                            <span class="input-unit"><input type="number" id="dimDepth" value="45" min="1" max="1000"><em>cm</em></span></label>
+                        <label class="field"><span data-i18n="dim.height"></span>
+                            <span class="input-unit"><input type="number" id="dimHeight" value="75" min="1" max="1000"><em>cm</em></span></label>
+                    </div>
+
+                    <div class="field">
+                        <span class="field-label" data-i18n="gen.engine"></span>
+                        <div class="engine-list" id="engineList" role="radiogroup" data-i18n-aria-label="gen.engine"></div>
+                    </div>
+
+                    <label class="toggle" id="textureRow">
+                        <input type="checkbox" id="textureToggle">
+                        <span class="toggle-track"></span>
+                        <span class="toggle-text"><strong data-i18n="gen.texture"></strong><small id="textureHint"></small></span>
+                    </label>
+
+                    <button type="button" class="btn primary block large" id="generate"><i data-icon="sparkles"></i><span data-i18n="gen.submit"></span></button>
+                    <div class="notice" id="apiNotice" hidden></div>
+                </section>
+
+                <section class="card" id="jobsCard" hidden>
+                    <header class="card-header"><h2 data-i18n="jobs.title"></h2></header>
+                    <ul class="job-list" id="jobList"></ul>
+                </section>
+
+                <section class="card" id="inspector" hidden>
+                    <header class="card-header">
+                        <h2 data-i18n="inspector.title"></h2>
+                        <button type="button" class="icon-btn small" id="inspectorClose" data-i18n-aria-label="inspector.deselect"><i data-icon="close"></i></button>
+                    </header>
+                    <label class="field"><span data-i18n="inspector.name"></span><input type="text" id="itemName" maxlength="60"></label>
+                    <div class="field-grid three">
+                        <label class="field"><span>X</span><span class="input-unit"><input type="number" id="itemX" step="1"><em>cm</em></span></label>
+                        <label class="field"><span>Z</span><span class="input-unit"><input type="number" id="itemZ" step="1"><em>cm</em></span></label>
+                        <label class="field"><span data-i18n="inspector.elevation"></span><span class="input-unit"><input type="number" id="itemY" step="1"><em>cm</em></span></label>
+                    </div>
+                    <label class="field"><span data-i18n="inspector.rotation"></span>
+                        <span class="range-with-value"><input type="range" id="itemRotation" min="0" max="359" step="1"><span class="input-unit narrow"><input type="number" id="itemRotationValue" min="0" max="359"><em>°</em></span></span>
+                    </label>
+                    <div class="field">
+                        <span class="field-label" data-i18n="inspector.fix"></span>
+                        <div class="tilt-buttons" id="tiltButtons">
+                            <button type="button" class="btn small" data-tilt="flip" data-i18n="inspector.tilt.flip"></button>
+                            <button type="button" class="btn small" data-tilt="forward" data-i18n="inspector.tilt.forward"></button>
+                            <button type="button" class="btn small" data-tilt="backward" data-i18n="inspector.tilt.backward"></button>
+                            <button type="button" class="btn small" data-tilt="left" data-i18n="inspector.tilt.left"></button>
+                            <button type="button" class="btn small" data-tilt="right" data-i18n="inspector.tilt.right"></button>
+                        </div>
+                        <small class="hint" data-i18n="inspector.fixHint"></small>
+                    </div>
+                    <button type="button" class="btn block" id="itemAddLight"><i data-icon="sun"></i><span data-i18n="inspector.addLight"></span></button>
+                    <p class="muted" id="itemSize"></p>
+                    <div class="button-row">
+                        <button type="button" class="btn" id="itemEdit"><i data-icon="edit"></i><span data-i18n="inspector.edit"></span></button>
+                        <button type="button" class="btn" id="itemDuplicate"><i data-icon="copy"></i><span data-i18n="inspector.duplicate"></span></button>
+                        <button type="button" class="btn danger" id="itemDelete"><i data-icon="erase"></i><span data-i18n="inspector.delete"></span></button>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <header class="card-header"><h2 data-i18n="furniture.placed"></h2></header>
+                    <ul class="furniture-list" id="furnitureList"></ul>
+                    <p class="empty" id="furnitureEmpty" data-i18n="furniture.empty"></p>
+                </section>
+            </div>
+        </aside>
+    </main>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+</div>
+
+<dialog class="mesh-editor" id="meshEditor">
+    <div class="mesh-editor-body">
+        <div class="mesh-editor-view" id="meshEditorView"></div>
+        <div class="mesh-editor-side">
+            <header class="card-header"><h2 data-i18n="edit.title"></h2></header>
+            <section>
+                <h3 data-i18n="edit.overall"></h3>
+                <label class="slider-row">X <input type="range" id="editScaleX" min="0.1" max="3" step="0.01" value="1"><output>1.00</output></label>
+                <label class="slider-row">Y <input type="range" id="editScaleY" min="0.1" max="3" step="0.01" value="1"><output>1.00</output></label>
+                <label class="slider-row">Z <input type="range" id="editScaleZ" min="0.1" max="3" step="0.01" value="1"><output>1.00</output></label>
+                <button type="button" class="btn small" id="editScaleReset" data-i18n="edit.reset"></button>
+            </section>
+            <section>
+                <h3 data-i18n="edit.partial"></h3>
+                <p class="hint" data-i18n="edit.hint"></p>
+                <label class="slider-row"><span data-i18n="edit.radius"></span> <input type="range" id="editRadius" min="0.01" max="1" step="0.01" value="0.2"><output>0.20</output></label>
+                <div id="editSelection" hidden>
+                    <p class="muted" id="editVertexCount"></p>
+                    <label class="slider-row">X <input type="range" id="editPartialX" min="0.1" max="3" step="0.01" value="1"><output>1.00</output></label>
+                    <label class="slider-row">Y <input type="range" id="editPartialY" min="0.1" max="3" step="0.01" value="1"><output>1.00</output></label>
+                    <label class="slider-row">Z <input type="range" id="editPartialZ" min="0.1" max="3" step="0.01" value="1"><output>1.00</output></label>
+                    <h3 data-i18n="edit.offset"></h3>
+                    <label class="slider-row">X <input type="range" id="editOffsetX" min="-1" max="1" step="0.01" value="0"><output>0.00</output></label>
+                    <label class="slider-row">Y <input type="range" id="editOffsetY" min="-1" max="1" step="0.01" value="0"><output>0.00</output></label>
+                    <label class="slider-row">Z <input type="range" id="editOffsetZ" min="-1" max="1" step="0.01" value="0"><output>0.00</output></label>
+                    <button type="button" class="btn small" id="editDeselect" data-i18n="edit.deselect"></button>
+                </div>
+            </section>
+            <footer class="button-row end">
+                <button type="button" class="btn ghost" id="editCancel" data-i18n="common.cancel"></button>
+                <button type="button" class="btn primary" id="editApply" data-i18n="common.apply"></button>
+            </footer>
+        </div>
+    </div>
+</dialog>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

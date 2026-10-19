@@ -1,0 +1,7 @@
+# Gateway and MCP server. Each generation engine keeps its own environment; see docs/engines.md.
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9
+mcp>=2.2,<3
+httpx>=0.27
+pillow>=10

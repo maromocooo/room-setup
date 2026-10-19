@@ -1,0 +1,24 @@
+# Dependencies and builds
+node_modules/
+dist/
+.vite/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime output: generated models, uploaded photos and engine logs
+generated/
+logs/
+*.log
+room-project*.zip
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
