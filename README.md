@@ -112,6 +112,10 @@ flowchart LR
 
 The browser only talks to its own origin; Vite forwards API calls, so the gateway stays on `127.0.0.1` and needs no CORS. Developer notes and the API reference are in [docs/development.md](docs/development.md).
 
+## Using images responsibly
+
+Photos you feed into the generator, such as product images from online shops, usually belong to someone else. Only use images you have the right to use. Please keep models generated from other people's images to personal use (planning your own room): don't redistribute or sell them, and take care with logos and trademarks that show up in textures. The best input is a photo you took yourself.
+
 ## Security
 
 This is a single-user tool for your own machine. The app and API have **no authentication** (the API does refuse requests from other websites). Keep both bound to localhost (the default). If you expose the dev server on a LAN with `HOST=0.0.0.0`, do so only on a network you trust, and never on the public Internet.
