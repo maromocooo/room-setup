@@ -61,6 +61,20 @@ ROOM_SETUP_MOCK_ENGINE=1 npm run api      # 在另一个终端中运行
 | [Pixal3D](https://github.com/TencentARC/Pixal3D) | 带 PBR 材质的形状 | 与照片高度一致。MIT 许可，但会下载 Meta 的 DINOv3（有自己的许可证）。 |
 | [SAM 3D Objects](https://github.com/facebookresearch/sam-3d-objects) | 带纹理的网格 | 对杂乱的真实照片也很稳健。Meta SAM License；权重需申请访问。 |
 
+### 所需显存
+
+所有引擎都需要支持 CUDA 的 NVIDIA GPU，已在 Linux + RTX 4090（24 GB）上测试。
+
+| 引擎 | 最低显存 | 推荐 |
+|---|---|---|
+| Hunyuan3D 2.1 | 10 GB（仅形状） | 24 GB（含纹理；仅纹理生成就需约 21 GB） |
+| TRELLIS.2 | 24 GB | 24 GB 以上 |
+| TRELLIS | 16 GB | 16 GB 以上 |
+| Pixal3D | 24 GB（低显存模式，本项目默认） | 24 GB 以上 |
+| SAM 3D Objects | 本项目设置下 24 GB（官方要求 32 GB） | 32 GB |
+
+未注明的数值来自各上游项目。同一时间只有一个引擎使用 GPU，因此所需显存取决于你安装的引擎中要求最高的那个。
+
 每个引擎都运行在各自的 Python 环境中；本项目不附带任何模型代码或权重。请按照各上游项目的说明安装需要的引擎，然后告诉 API 它们的位置：
 
 ```bash

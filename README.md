@@ -61,6 +61,20 @@ ROOM_SETUP_MOCK_ENGINE=1 npm run api      # in a second terminal
 | [Pixal3D](https://github.com/TencentARC/Pixal3D) | Shape with PBR materials | Follows the photo closely. MIT, but downloads Meta's DINOv3 (own license). |
 | [SAM 3D Objects](https://github.com/facebookresearch/sam-3d-objects) | Textured mesh | Robust on cluttered real-world photos. Meta SAM License; gated weights. |
 
+### GPU memory
+
+All engines need an NVIDIA GPU with CUDA and have been tested on Linux with an RTX 4090 (24 GB).
+
+| Engine | Minimum VRAM | Recommended |
+|---|---|---|
+| Hunyuan3D 2.1 | 10 GB (shape only) | 24 GB (with texture; texturing alone needs about 21 GB) |
+| TRELLIS.2 | 24 GB | 24 GB+ |
+| TRELLIS | 16 GB | 16 GB+ |
+| Pixal3D | 24 GB (low-VRAM mode, the default here) | 24 GB+ |
+| SAM 3D Objects | 24 GB with this project's settings (upstream asks for 32 GB) | 32 GB |
+
+Minimums come from each upstream project except where noted; only one engine uses the GPU at a time, so the largest one you install sets the requirement.
+
 Each engine stays in its own Python environment; this project does not bundle any model code or weights. Install the ones you want by following their upstream instructions, then point the API at them:
 
 ```bash

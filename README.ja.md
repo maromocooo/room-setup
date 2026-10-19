@@ -61,6 +61,20 @@ ROOM_SETUP_MOCK_ENGINE=1 npm run api      # 別のターミナルで
 | [Pixal3D](https://github.com/TencentARC/Pixal3D) | 形状＋PBRマテリアル | 写真に忠実。MITだがMetaのDINOv3（独自ライセンス）を読み込む。 |
 | [SAM 3D Objects](https://github.com/facebookresearch/sam-3d-objects) | テクスチャ付きメッシュ | 散らかった実写写真に強い。MetaのSAM License、重みはゲート付き。 |
 
+### 必要なGPUメモリ
+
+どのエンジンもCUDA対応のNVIDIA GPUが必要です。動作確認はLinux＋RTX 4090（24GB）で行っています。
+
+| エンジン | 最低VRAM | 推奨 |
+|---|---|---|
+| Hunyuan3D 2.1 | 10GB（形状のみ） | 24GB（テクスチャあり。テクスチャ生成だけで約21GB） |
+| TRELLIS.2 | 24GB | 24GB以上 |
+| TRELLIS | 16GB | 16GB以上 |
+| Pixal3D | 24GB（省VRAMモード。本プロジェクトの既定） | 24GB以上 |
+| SAM 3D Objects | 本プロジェクトの設定で24GB（公式の要件は32GB） | 32GB |
+
+注記のないものは各公式リポジトリの値です。GPUを使うエンジンは常に1つだけなので、導入するエンジンのうち最も大きい要件が必要になります。
+
 各エンジンはそれぞれ専用のPython環境で動きます。本プロジェクトにはモデルのコードや重みを同梱しません。使いたいエンジンを公式手順で導入し、APIにパスを設定してください：
 
 ```bash

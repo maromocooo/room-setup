@@ -61,6 +61,20 @@ ROOM_SETUP_MOCK_ENGINE=1 npm run api      # 두 번째 터미널에서
 | [Pixal3D](https://github.com/TencentARC/Pixal3D) | PBR 재질이 있는 형상 | 사진에 충실합니다. MIT이지만 Meta의 DINOv3(별도 라이선스)를 내려받습니다. |
 | [SAM 3D Objects](https://github.com/facebookresearch/sam-3d-objects) | 텍스처가 있는 메시 | 어수선한 실제 사진에도 강합니다. Meta SAM License, 가중치는 접근 신청이 필요합니다. |
 
+### 필요한 GPU 메모리
+
+모든 엔진은 CUDA를 지원하는 NVIDIA GPU가 필요하며, Linux + RTX 4090(24GB)에서 테스트했습니다.
+
+| 엔진 | 최소 VRAM | 권장 |
+|---|---|---|
+| Hunyuan3D 2.1 | 10GB(형상만) | 24GB(텍스처 포함, 텍스처 생성만으로 약 21GB) |
+| TRELLIS.2 | 24GB | 24GB 이상 |
+| TRELLIS | 16GB | 16GB 이상 |
+| Pixal3D | 24GB(저VRAM 모드, 이 프로젝트의 기본값) | 24GB 이상 |
+| SAM 3D Objects | 이 프로젝트 설정으로 24GB(공식 요구 사항은 32GB) | 32GB |
+
+따로 표시하지 않은 값은 각 업스트림 프로젝트의 수치입니다. GPU를 쓰는 엔진은 항상 하나뿐이므로, 설치한 엔진 중 가장 큰 요구 사항이 기준이 됩니다.
+
 각 엔진은 자체 Python 환경에서 실행되며, 이 프로젝트는 모델 코드나 가중치를 포함하지 않습니다. 원하는 엔진을 각 업스트림 안내에 따라 설치한 뒤 API에 위치를 알려 주세요.
 
 ```bash

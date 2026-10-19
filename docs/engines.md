@@ -44,7 +44,7 @@ The browser scales every result to the width, depth and height you enter, so the
 - Only one engine is resident at a time. When a job asks for a different engine, the gateway asks the current worker to exit, waits for it, then starts the new one. Switching costs one model load (typically tens of seconds once weights are cached).
 - Jobs run one at a time in the order submitted. You can queue jobs for different engines; each switch happens automatically.
 - `PRELOAD_ENGINE=hunyuan3d` loads an engine as soon as the gateway starts, so the first job doesn't wait.
-- Hunyuan3D texturing temporarily moves the shape model to the CPU, loads the paint model, and releases it afterwards. Expect noticeably higher memory use and longer jobs with texturing on. A 24 GB GPU is comfortable for all three engines; smaller cards may manage shape-only Hunyuan3D or TRELLIS.
+- Hunyuan3D texturing temporarily moves the shape model to the CPU, loads the paint model, and releases it afterwards. Expect noticeably higher memory use and longer jobs with texturing on. A 24 GB GPU runs every engine with the default settings; smaller cards may manage shape-only Hunyuan3D (10 GB) or TRELLIS (16 GB). See the GPU memory table in the README.
 
 ## Troubleshooting
 
