@@ -12,6 +12,14 @@ Plan a room in 2D, walk around it in 3D, and fill it with furniture generated fr
 
 ![Drawing an L-shaped room, adding a door and window, and changing the floor](docs/images/demo.webp)
 
+## Example: try it in your room before you buy
+
+Found furniture or a gadget you like in an online shop? Take a screenshot of the product photo, enter its size and generate a 3D model. It's placed in your room at real scale, so you can see how it fits and how it looks before you order.
+
+![Screenshotting a product page, generating the dog bed in 3D and placing it in the room](docs/images/try-before-you-buy.webp)
+
+<sub>The shop in this video is a mock page made for the demo from our own photo. Generation is shown at 10× speed.</sub>
+
 ## Features
 
 <table>
