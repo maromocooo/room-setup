@@ -92,6 +92,7 @@
                     <button type="button" class="tool" data-camera="orbit" data-i18n-title="room.camera.orbit"><i data-icon="orbit"></i></button>
                     <button type="button" class="tool" data-camera="top" data-i18n-title="room.camera.top"><i data-icon="top"></i></button>
                     <button type="button" class="tool" data-camera="inside" data-i18n-title="room.camera.inside"><i data-icon="person"></i></button>
+                    <button type="button" class="tool" data-camera="walk" id="walkToggle" data-i18n-title="room.camera.walk"><i data-icon="walk"></i></button>
                     <span class="toolbar-sep"></span>
                     <button type="button" class="tool" data-walls="solid" data-i18n-title="room.walls.solid"><i data-icon="solid"></i></button>
                     <button type="button" class="tool" data-walls="ghost" data-i18n-title="room.walls.ghost"><i data-icon="ghost"></i></button>
@@ -117,7 +118,12 @@
                     </label>
                 </div>
 
-                <div class="float float-bottom-left hud" data-i18n="room.hint"></div>
+                <div class="float float-bottom-left hud" id="roomHint" data-i18n="room.hint"></div>
+                <div class="walk-crosshair" id="walkCrosshair" hidden></div>
+                <div class="float float-bottom-center walk-bar" id="walkBar" hidden>
+                    <span class="walk-keys" id="walkHint" data-i18n="walk.hint"></span>
+                    <button type="button" class="btn" id="walkExit" data-i18n="walk.exit"></button>
+                </div>
                 <div class="plan-empty" id="roomEmpty">
                     <i data-icon="cube"></i>
                     <p data-i18n="room.empty.title"></p>

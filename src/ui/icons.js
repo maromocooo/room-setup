@@ -25,6 +25,7 @@ const PATHS = {
     ghost: '<rect x="4.5" y="4.5" width="15" height="15" rx="1.5" stroke-dasharray="3 2.4"/>',
     orbit: '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4v4.5H8"/>',
     top: '<rect x="4" y="4" width="16" height="16" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx=".5"/>',
+    walk: '<circle cx="13" cy="4.5" r="2"/><path d="m9 21 2.5-6.5L14 16v5"/><path d="m7.5 12 2.5-4h4l2.5 4.5"/><path d="M11.5 14.5 12 8"/>',
     person: '<circle cx="12" cy="5.5" r="2.2"/><path d="M8 21v-6.5l-1.5-1V10a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3.5l-1.5 1V21"/>',
     move: '<path d="M12 3v18M3 12h18M9 5.5 12 3l3 2.5M9 18.5l3 2.5 3-2.5M5.5 9 3 12l2.5 3M18.5 9 21 12l-2.5 3"/>',
     rotate: '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/>',

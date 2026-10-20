@@ -228,11 +228,24 @@ export function startApp() {
     for (const button of document.querySelectorAll('[data-walls]')) button.addEventListener('click', () => { scene.setWallMode(button.dataset.walls); syncToolbars(); });
     for (const button of document.querySelectorAll('[data-gizmo]')) button.addEventListener('click', () => { scene.setGizmoMode(button.dataset.gizmo); syncToolbars(); });
     $('brightness').addEventListener('input', e => scene.setBrightness(Number(e.target.value)));
+    $('walkExit').addEventListener('click', () => scene.stopWalk());
+    let walkUnlockedAt = 0;
+    scene.onWalkChange = () => {
+        if (scene.walk && !scene.walk.locked) walkUnlockedAt = performance.now();
+        syncToolbars();
+    };
 
     function syncToolbars() {
         for (const b of document.querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(b.dataset.tool === plan.tool));
         for (const b of document.querySelectorAll('[data-walls]')) b.setAttribute('aria-pressed', String(b.dataset.walls === scene.wallMode));
         for (const b of document.querySelectorAll('[data-gizmo]')) b.setAttribute('aria-pressed', String(b.dataset.gizmo === scene.gizmoMode));
+        $('walkToggle').setAttribute('aria-pressed', String(scene.walking));
+        const locked = scene.walking && scene.walk.locked;
+        $('walkBar').hidden = !scene.walking;
+        $('walkCrosshair').hidden = !locked;
+        $('roomHint').hidden = scene.walking;
+        $('walkHint').dataset.i18n = locked ? 'walk.hintLocked' : 'walk.hint';
+        $('walkHint').textContent = t($('walkHint').dataset.i18n);
     }
 
     function updateUndo() {
@@ -357,7 +370,10 @@ export function startApp() {
         else if (view === 'plan' && key === 'v') setTool('select');
         else if (view === 'plan' && key === 'e') setTool('erase');
         else if (view === 'plan' && key === 'f') plan.fit();
-        else if (key === 'escape') {
+        else if (key === 'escape' && scene.walking) {
+            // The Esc that released the mouse should not also end the walk.
+            if (!scene.walk.locked && performance.now() - walkUnlockedAt > 300) scene.stopWalk();
+        } else if (key === 'escape') {
             plan.cancel();
             if (plan.tool === 'opening' || plan.tool === 'light') setTool('select');
             store.selectFurniture(null);

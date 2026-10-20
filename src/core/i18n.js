@@ -17,6 +17,10 @@ export const messages = {
         'plan.hud': '{x}, {y} · {zoom}%',
 
         'room.camera.orbit': '全体を見る', 'room.camera.top': '真上から', 'room.camera.inside': '室内の目線',
+        'room.camera.walk': '部屋を歩く（ウォークモード）',
+        'walk.hint': 'クリックでマウス視点 · WASD / 矢印キーで移動 · Shift で走る · Esc でマウス解放',
+        'walk.hintLocked': 'マウスで視点 · WASD / 矢印キーで移動 · Shift で走る · Esc でマウス解放',
+        'walk.exit': 'ウォーク終了',
         'room.walls.solid': '壁を表示', 'room.walls.ghost': '手前の壁を下げる', 'room.walls.hidden': '壁を隠す',
         'room.gizmo.move': '家具を移動', 'room.gizmo.rotate': '家具を回転', 'room.brightness': '明るさ',
         'room.hint': 'ドラッグで回転 · 右ドラッグで移動 · ホイールでズーム · 家具をクリックで選択',
@@ -152,6 +156,10 @@ export const messages = {
         'plan.hud': '{x}, {y} · {zoom}%',
 
         'room.camera.orbit': 'Overview', 'room.camera.top': 'From above', 'room.camera.inside': 'Eye level',
+        'room.camera.walk': 'Walk around (walk mode)',
+        'walk.hint': 'Click to look with the mouse · WASD / arrow keys to move · Shift to run · Esc to release the mouse',
+        'walk.hintLocked': 'Mouse to look · WASD / arrow keys to move · Shift to run · Esc to release the mouse',
+        'walk.exit': 'Stop walking',
         'room.walls.solid': 'Show walls', 'room.walls.ghost': 'Cut away near walls', 'room.walls.hidden': 'Hide walls',
         'room.gizmo.move': 'Move furniture', 'room.gizmo.rotate': 'Rotate furniture', 'room.brightness': 'Brightness',
         'room.hint': 'Drag to orbit · right-drag to pan · scroll to zoom · click furniture to select',

@@ -13,9 +13,12 @@ import { planBounds, wallLength } from '../core/geometry.js';
 import { findPreset, materialCanvas } from '../core/textures.js';
 import { buildWall } from './wall-builder.js';
 import { Lighting } from './lighting.js';
+import { WalkControls } from './walk-controls.js';
+import { eyeHeight, walkObstacles } from '../core/walk.js';
 
 const WALL_THICKNESS = 0.1;
 const CUTAWAY_HEIGHT = 0.18;
+const WALK_FOV = 70; // wider than the orbit camera, closer to what your eyes take in
 
 export class RoomScene {
     /**
@@ -33,8 +36,10 @@ export class RoomScene {
         this.wallMeshes = [];
         this._textures = new Map();
         this._needsFraming = true;
+        this.walking = false;
         this.onSelect = null;
         this.onTransform = null;
+        this.onWalkChange = null;
     }
 
     init() {
@@ -103,6 +108,13 @@ export class RoomScene {
         });
         this.setGizmoMode(this.gizmoMode);
 
+        this.walk = new WalkControls({
+            camera: this.camera, domElement: renderer.domElement,
+            obstacles: () => walkObstacles(this.store.walls, this.store.openings, this.footprints()),
+            onLockChange: () => this.onWalkChange?.(),
+        });
+        this._clock = new THREE.Clock();
+
         this._bindPicking();
         new ResizeObserver(() => this.resize()).observe(this.host);
         this.applyTheme();
@@ -124,6 +136,8 @@ export class RoomScene {
 
     hide() {
         this.visible = false;
+        // Leave walking too, so its keys do not reach the plan (W draws walls there).
+        if (this.walking) this.stopWalk();
         this.renderer?.setAnimationLoop(null);
     }
 
@@ -137,10 +151,12 @@ export class RoomScene {
     }
 
     frame() {
-        this.controls.update();
+        const dt = this._clock.getDelta();
+        if (this.walking) this.walk.update(dt);
+        else this.controls.update();
         this.gizmo.update();
         this.lightGizmo.update();
-        if (this.wallMode === 'ghost') this._updateCutaway();
+        if (this.wallMode === 'ghost' && !this.walking) this._updateCutaway();
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -291,7 +307,8 @@ export class RoomScene {
 
     applyWallMode() {
         for (const mesh of this.wallMeshes) {
-            mesh.visible = this.wallMode !== 'hidden';
+            // Walking inside, you see every wall in full whatever the setting.
+            mesh.visible = this.walking || this.wallMode !== 'hidden';
             this._setWallCut(mesh, false);
         }
     }
@@ -332,6 +349,12 @@ export class RoomScene {
 
     setCamera(preset) {
         if (!this.ready) return;
+        if (preset === 'walk') return this.startWalk();
+        this.stopWalk();
+        this._placeCamera(preset);
+    }
+
+    _placeCamera(preset) {
         const bounds = planBounds(this.store.walls) ?? { cx: 200, cy: 150, width: 400, height: 300 };
         const center = new THREE.Vector3(bounds.cx / 100, 0, bounds.cy / 100);
         const size = Math.max(bounds.width, bounds.height, 200) / 100;
@@ -355,6 +378,56 @@ export class RoomScene {
         this._needsFraming = false;
     }
 
+    // ---- walking ----
+    /**
+     * Walk through the room at eye level. Starts where the camera is if it is
+     * inside the room (keeping its heading), otherwise near a corner facing
+     * the middle, like the eye-level view.
+     */
+    startWalk() {
+        if (!this.ready || this.walking || !this.store.walls.length) return;
+        const polygon = getFloorPolygon(this.store.walls);
+        const here = this.camera.position;
+        const look = new THREE.Vector3();
+        this.camera.getWorldDirection(look);
+        let start = here.clone();
+        let yaw = Math.atan2(-look.x, -look.z);
+        if (!polygon || !insidePolygon(polygon, here.x, here.z) || here.y > this.store.ceilingHeight / 100) {
+            this._placeCamera('inside');
+            start = this.camera.position.clone();
+            const toTarget = this.controls.target.clone().sub(start);
+            yaw = Math.atan2(-toTarget.x, -toTarget.z);
+        }
+        this.walking = true;
+        this._orbitFov = this.camera.fov;
+        this.camera.fov = WALK_FOV;
+        this.camera.updateProjectionMatrix();
+        this.controls.enabled = false;
+        this.gizmo.detach();
+        this.lightGizmo.detach();
+        this.applyWallMode();
+        this.walk.enable(start, yaw, eyeHeight(this.store.ceilingHeight) / 100);
+        this.onWalkChange?.();
+    }
+
+    stopWalk() {
+        if (!this.walking) return;
+        this.walking = false;
+        this.walk.disable();
+        this.camera.fov = this._orbitFov;
+        this.camera.updateProjectionMatrix();
+        // Orbit around a point just ahead, so the view does not jump.
+        const ahead = new THREE.Vector3();
+        this.camera.getWorldDirection(ahead);
+        this.controls.target.copy(this.camera.position).addScaledVector(ahead, 1.5);
+        this.controls.enabled = true;
+        this.controls.update();
+        this.applyWallMode();
+        this.syncSelection();
+        this.syncLights();
+        this.onWalkChange?.();
+    }
+
     // ---- furniture ----
     syncFurniture() {
         if (!this.ready) return;
@@ -375,7 +448,8 @@ export class RoomScene {
         this.lighting.sync(this.store.lights, this.store.ceilingHeight, this.store.selectedLightId,
             id => this.furniturePose(id), this._lightDrag?.id);
         const selected = this.store.selectedLightId && this.lighting.objectFor(this.store.selectedLightId);
-        if (selected && this.lightGizmo.object !== selected) this.lightGizmo.attach(selected);
+        if (this.walking) this.lightGizmo.detach();
+        else if (selected && this.lightGizmo.object !== selected) this.lightGizmo.attach(selected);
         else if (!selected && this.lightGizmo.object) this.lightGizmo.detach();
     }
 
@@ -396,7 +470,7 @@ export class RoomScene {
     syncSelection() {
         if (!this.ready) return;
         // One set of handles at a time: a selected light wins over furniture.
-        const item = !this.store.selectedLightId && this.store.getFurniture(this.store.selectedFurnitureId);
+        const item = !this.walking && !this.store.selectedLightId && this.store.getFurniture(this.store.selectedFurnitureId);
         if (item) this.gizmo.attach(item.object);
         else this.gizmo.detach();
     }
@@ -407,7 +481,7 @@ export class RoomScene {
         let down = null;
         canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
         canvas.addEventListener('pointerup', e => {
-            if (!down || e.button !== 0 || this.gizmo.dragging || this.lightGizmo.dragging) { down = null; return; }
+            if (this.walking || !down || e.button !== 0 || this.gizmo.dragging || this.lightGizmo.dragging) { down = null; return; }
             const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
             const quick = performance.now() - down.t < 400;
             down = null;
@@ -437,6 +511,7 @@ export class RoomScene {
                 rotation: o.rotation.y,
                 width: fp.width * 100,
                 depth: fp.depth * 100,
+                height: fp.height * 100,
                 x: (o.position.x + fp.offsetX * cos + fp.offsetZ * sin) * 100,
                 z: (o.position.z - fp.offsetX * sin + fp.offsetZ * cos) * 100,
             };
@@ -463,7 +538,7 @@ export class RoomScene {
         const width = Math.min(Math.max(view.width ?? 1280, 256), 2048);
         const height = Math.min(Math.max(view.height ?? 800, 256), 2048);
         const saved = {
-            position: this.camera.position.clone(), target: this.controls.target.clone(),
+            position: this.camera.position.clone(), quaternion: this.camera.quaternion.clone(), target: this.controls.target.clone(),
             fov: this.camera.fov, aspect: this.camera.aspect, framing: this._needsFraming,
             size: this.renderer.getSize(new THREE.Vector2()),
         };
@@ -473,26 +548,27 @@ export class RoomScene {
             this.controls.target.set(view.target.x / 100, (view.target.y ?? 100) / 100, view.target.z / 100);
             this.camera.fov = view.fov ?? 60;
         } else {
-            this.setCamera({ overview: 'orbit', top: 'top', inside: 'inside' }[view.mode] ?? 'orbit');
+            this._placeCamera({ overview: 'orbit', top: 'top', inside: 'inside' }[view.mode] ?? 'orbit');
         }
         this.camera.updateProjectionMatrix();
         this.camera.lookAt(this.controls.target);
         this.gizmo.setVisible(false);
         this.lightGizmo.setVisible(false);
         this.renderer.setSize(width, height, false);
-        if (this.wallMode === 'ghost') this._updateCutaway();
+        if (this.wallMode === 'ghost' && !this.walking) this._updateCutaway();
         this.renderer.render(this.scene, this.camera);
         const url = this.renderer.domElement.toDataURL('image/png');
 
         this.camera.position.copy(saved.position);
+        this.camera.quaternion.copy(saved.quaternion);
         this.controls.target.copy(saved.target);
         this.camera.fov = saved.fov;
         this.camera.aspect = saved.aspect;
         this.camera.updateProjectionMatrix();
         this._needsFraming = saved.framing;
         this.renderer.setSize(saved.size.x, saved.size.y, false);
-        this.gizmo.setVisible(true);
-        this.lightGizmo.setVisible(true);
+        this.gizmo.setVisible(!this.walking);
+        this.lightGizmo.setVisible(!this.walking);
         this.resize();
         return url;
     }
@@ -523,6 +599,17 @@ export function footprint(item) {
     const center = box.getCenter(new THREE.Vector3());
     item.footprint = { width: size.x, depth: size.z, height: size.y, offsetX: center.x, offsetZ: center.z, bottom: box.min.y };
     return item.footprint;
+}
+
+/** Even-odd test against the floor polygon (scene metres, points with x/z). */
+function insidePolygon(polygon, x, z) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const a = polygon[i];
+        const b = polygon[j];
+        if ((a.z > z) !== (b.z > z) && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
+    }
+    return inside;
 }
 
 function flipWinding(geometry) {

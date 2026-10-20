@@ -101,6 +101,21 @@ try {
     await new Promise(r => setTimeout(r, 1500));
     await step(page, '06-room');
 
+    // Walk mode: W moves the eye-level camera, Esc ends the walk.
+    await page.click('#walkToggle');
+    assert.equal(await page.$eval('#walkBar', el => el.hidden), false);
+    const eye = () => page.evaluate(() => window.roomSetup.scene.camera.position.toArray());
+    const before = await eye();
+    await page.keyboard.down('KeyW');
+    await new Promise(r => setTimeout(r, 600));
+    await page.keyboard.up('KeyW');
+    const after = await eye();
+    assert.ok(Math.hypot(after[0] - before[0], after[2] - before[2]) > 0.05, 'walked forward');
+    assert.ok(Math.abs(after[1] - before[1]) < 1e-6, 'eye height unchanged');
+    await step(page, '07-walk');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !window.roomSetup.scene.walking);
+
     // Save → open round trip through the real ZIP code.
     const roundTrip = await page.evaluate(async () => {
         const { saveProject, openProject } = await import('/src/project/project-io.js');
