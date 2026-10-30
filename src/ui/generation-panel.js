@@ -6,7 +6,7 @@
 
 import { api } from '../api/client.js';
 import { t } from '../core/i18n.js';
-import { loadGltfScene, makeFurnitureObject, thumbnailFromBlob } from '../scene/furniture.js';
+import { loadGltfScene, makeFurnitureObject, modelSizeCm, thumbnailFromBlob } from '../scene/furniture.js';
 import { icon } from './icons.js';
 
 const ENGINE_KEY = 'room-setup.engine';
@@ -177,6 +177,33 @@ export function setupGenerationPanel({ store, toast, placeFurniture }) {
         renderJobs();
         if (local.status === 'done') return place(local);
         if (local.status !== 'error') setTimeout(() => pollJob(id), POLL_JOB_MS);
+    }
+
+    // ---- ready-made models ----
+    $('importGlb').addEventListener('click', () => $('glbInput').click());
+    $('glbInput').addEventListener('change', e => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (file) importGlb(file);
+    });
+
+    async function importGlb(file) {
+        const url = URL.createObjectURL(file);
+        try {
+            const model = await loadGltfScene(url);
+            const dimensions = modelSizeCm(model);
+            if (!dimensions) throw new Error('The file has no geometry.');
+            const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+            const item = placeFurniture({ id, object: makeFurnitureObject(model, dimensions), dimensions, thumbnail: null, engine: 'import' });
+            item.name = file.name.replace(/\.glb$/i, '') || item.name;
+            store.emit('furniture');
+            toast(t('toast.generated', { name: item.name }), { type: 'success' });
+        } catch (error) {
+            console.warn(error);
+            toast(t('toast.loadFailed'), { type: 'error' });
+        } finally {
+            URL.revokeObjectURL(url);
+        }
     }
 
     async function place(job) {

@@ -87,6 +87,7 @@ export const messages = {
         'gen.textureHint.optional': '色と質感を付けます。時間とGPUメモリを多く使います',
         'gen.textureHint.always': 'このエンジンは常に色付きで生成します',
         'gen.submit': '3Dモデルを生成',
+        'gen.import': 'GLB を読み込む', 'gen.import.hint': '手元の GLB ファイルを、ファイルどおりの実寸（1単位 = 1m）で部屋に置きます',
         'gen.needImage': '先に家具の写真を選んでください', 'gen.badDims': '幅・奥行き・高さを正しく入力してください',
         'gen.noEngine': '使える生成エンジンがありません',
 
@@ -226,6 +227,7 @@ export const messages = {
         'gen.textureHint.optional': 'Adds colour and material. Slower and uses more GPU memory',
         'gen.textureHint.always': 'This engine always produces coloured models',
         'gen.submit': 'Generate 3D model',
+        'gen.import': 'Import GLB', 'gen.import.hint': 'Place a GLB file in the room at the size stored in the file (1 unit = 1 m)',
         'gen.needImage': 'Choose a furniture photo first', 'gen.badDims': 'Enter a valid width, depth and height',
         'gen.noEngine': 'No generation engine is available',
 

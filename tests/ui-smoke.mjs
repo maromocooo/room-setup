@@ -96,6 +96,26 @@ try {
     assert.equal(await page.$eval('#inspector', el => el.hidden), false);
     await step(page, '05-furniture');
 
+    // A GLB file is placed at the size stored in it (the mock model is a 1 m cube).
+    const mockGlb = await page.evaluate(async () => {
+        const { store } = window.roomSetup;
+        const bytes = new Uint8Array(await (await fetch(store.furniture[0].modelUrl)).arrayBuffer());
+        return { bytes: [...bytes], count: store.furniture.length };
+    });
+    const glbFile = join(process.env.TMPDIR || '/tmp', `テスト-${process.pid}.glb`);
+    (await import('node:fs')).writeFileSync(glbFile, Buffer.from(mockGlb.bytes));
+    await (await page.$('#glbInput')).uploadFile(glbFile);
+    await page.waitForFunction(count => window.roomSetup.store.furniture.length === count + 1, {}, mockGlb.count);
+    const imported = await page.evaluate(() => {
+        const { store, footprint } = window.roomSetup;
+        const item = store.furniture.at(-1);
+        const fp = footprint(item);
+        return { name: item.name, engine: item.engine, size: [fp.width, fp.depth, fp.height].map(v => Math.round(v * 100)) };
+    });
+    assert.deepEqual(imported, { name: `テスト-${process.pid}`, engine: 'import', size: [100, 100, 100] });
+    await page.evaluate(() => { const { store } = window.roomSetup; store.removeFurniture?.(store.furniture.at(-1).id); });
+    await page.waitForFunction(count => window.roomSetup.store.furniture.length === count, {}, mockGlb.count);
+
     // 3D view renders without errors.
     await page.click('[data-view="room"]');
     await new Promise(r => setTimeout(r, 1500));

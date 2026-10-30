@@ -47,6 +47,14 @@ export function makeFurnitureObject(model, dimensions, tilt = null) {
     return container;
 }
 
+/** Size of a loaded model in centimetres as stored in the file (1 unit = 1 m), or null if it is empty. */
+export function modelSizeCm(model) {
+    model.updateMatrixWorld(true);
+    const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+    if (!(size.x > 0 && size.y > 0 && size.z > 0)) return null;
+    return { width: size.x * 100, height: size.y * 100, depth: size.z * 100 };
+}
+
 /** The fit/orient layers inside a container, wrapping its current content if missing. */
 function ensureLayers(container) {
     let fit = container.getObjectByName('rs-fit');
