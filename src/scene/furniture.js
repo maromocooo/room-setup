@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { dimensionsAfterTurn, fitScales, turnDimensions } from '../core/tilt.js';
 
 const loader = new GLTFLoader();
 
@@ -30,9 +31,7 @@ function prepareMaterials(root) {
 
 /**
  * Wrap a freshly generated model in a container, scaled so its bounding box
- * matches the requested size in centimetres. The longer horizontal side of
- * the model is paired with the longer of width/depth, so a sofa generated
- * sideways is not squashed.
+ * matches the requested size in centimetres (see fitScales).
  *
  * Layers: container (placement) → 'rs-fit' (scale, centring) → 'rs-orient'
  * (tilt fix for models generated upside down or on their side) → model.
@@ -95,10 +94,8 @@ function fitToDimensions(container, dimensions) {
     fit.position.set(0, 0, 0);
     const size = localBox(container, fit).getSize(new THREE.Vector3());
     if (dimensions && size.x > 0 && size.y > 0 && size.z > 0) {
-        const long = Math.max(dimensions.width, dimensions.depth) / 100;
-        const short = Math.min(dimensions.width, dimensions.depth) / 100;
-        const xIsLong = size.x >= size.z;
-        fit.scale.set((xIsLong ? long : short) / size.x, dimensions.height / 100 / size.y, (xIsLong ? short : long) / size.z);
+        const scale = fitScales(size, dimensions);
+        fit.scale.set(scale.x, scale.y, scale.z);
     }
     const box = localBox(container, fit);
     const centre = box.getCenter(new THREE.Vector3());
@@ -114,6 +111,25 @@ export function setTilt(container, tilt, dimensions) {
     const rad = THREE.MathUtils.degToRad;
     orient.rotation.set(rad(tilt.x || 0), rad(tilt.y || 0), rad(tilt.z || 0));
     fitToDimensions(container, dimensions);
+}
+
+/**
+ * Turn a piece of furniture a quarter or half turn at the person's request. Keeps its
+ * real shape, unless it had been squeezed into a size meant for another orientation;
+ * see dimensionsAfterTurn. Returns the size it ends up with.
+ */
+export function turnFurniture(container, tilt, dimensions, turn) {
+    const { orient, fit } = ensureLayers(container);
+    const rad = THREE.MathUtils.degToRad;
+    orient.rotation.set(rad(tilt.x || 0), rad(tilt.y || 0), rad(tilt.z || 0));
+    fit.scale.set(1, 1, 1);
+    fit.position.set(0, 0, 0);
+    const size = localBox(container, fit).getSize(new THREE.Vector3());
+    const after = size.x > 0 && size.y > 0 && size.z > 0
+        ? dimensionsAfterTurn(size, dimensions, turnDimensions(dimensions, turn))
+        : dimensions;
+    fitToDimensions(container, after);
+    return after;
 }
 
 /** A container loaded from a saved project: transforms are already baked in. */
