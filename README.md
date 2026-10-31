@@ -30,7 +30,7 @@ Found furniture or a gadget you like in an online shop? Take a screenshot of the
 </table>
 
 - **Floor plan editor**: draw walls with grid and corner snapping, Shift to lock angles, drag corners or whole walls (connected walls follow), undo/redo, pan and zoom, rectangle and L-shaped templates, live lengths and floor area.
-- **Doors and windows**: hinged, double, sliding doors and open doorways; sliding, patio, fixed, casement and high windows. Set width, height and sill height, drag them along a wall, flip a door's hinge or swing. They're cut into the 3D walls with frames and glass.
+- **Doors and windows**: hinged, double, sliding doors and open doorways; sliding, patio, fixed, casement and high windows. Set width, height and sill height, drag them along a wall, flip a door's hinge or swing. They're cut into the 3D walls with frames and glass. Any window can have curtains: choose a fabric and any colour, and draw them back to a tieback.
 - **Lighting**: give a generated lamp a light source that moves with it, or place ceiling lights, pendants, downlights, spots, floor and table lamps. Set brightness (lumens), colour temperature and shadows, move lights in the plan or with 3D arrows, and switch between morning, day, evening and night, with sunlight coming in through the windows.
 - **3D room**: shadows, environment lighting, a dollhouse cutaway that lowers the walls facing the camera, overview/top/eye-level cameras, and move/rotate gizmos for furniture.
 - **Walk mode**: walk through the room at eye level like a game: WASD or arrow keys to move, the mouse to look around, Shift to run. Walls and tall furniture stop you; doors let you through.
@@ -117,7 +117,7 @@ Then send it your room photos (from the middle of the room towards each corner),
 | `Shift` while drawing | Lock to 45° steps |
 | `Space` + drag, middle or right drag, wheel | Pan and zoom the plan |
 | `F` | Fit the plan to the view |
-| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo walls |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo: walls, doors and windows, finishes, lights and furniture, also with the buttons in both views |
 | `R` / `Shift+R` | Rotate the selected furniture by 90° |
 | `Delete` | Delete the selected furniture or wall |
 | `Ctrl+S` | Save the project |

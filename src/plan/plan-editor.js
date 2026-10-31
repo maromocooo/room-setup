@@ -321,6 +321,8 @@ export class PlanEditor {
             drag.moved = true;
             this.store.touchWalls();
         } else if (drag.type === 'furniture') {
+            if (!drag.recorded) this.store.checkpoint();
+            drag.recorded = true;
             this.hooks.moveFurniture(drag.id, world.x - drag.offset.x, world.y - drag.offset.y);
         } else if (drag.type === 'light') {
             if (!drag.moved) this.store.checkpoint();

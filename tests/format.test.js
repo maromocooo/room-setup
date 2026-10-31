@@ -87,3 +87,16 @@ test('board direction survives saving, and older projects stay horizontal', () =
     assert.equal(saved().floor.direction, undefined);
     assert.equal(parseProject(saved('horizontal')).floor.direction, undefined);
 });
+
+test('a curtain survives a save and load, and bad ones are repaired', () => {
+    const curtain = { enabled: true, material: 'velvet', color: '#334455', open: 40 };
+    const walls = [{ id: 'w1', start: { x: 0, y: 0 }, end: { x: 300, y: 0 } }];
+    const window = { id: 'o1', kind: 'window', preset: 'window-sliding', style: 'sliding', wallId: 'w1', offset: 100, width: 100, height: 100, sill: 90, side: 1 };
+    const file = data => parseProject({ format: 'room-setup', exportVersion: 3, walls: walls.map(({ id, ...w }) => w), ceilingHeight: 240,
+        floor: { finish: { preset: 'oak' }, scale: 1 }, wall: { finish: { preset: 'standard' }, scale: 1 }, furniture: [], openings: [data] });
+    const { id, wallId, ...rest } = window;
+    assert.deepEqual(file({ ...rest, wall: 0, curtain }).openings[0].curtain, curtain);
+    assert.equal(file({ ...rest, wall: 0 }).openings[0].curtain, undefined);
+    assert.equal(file({ ...rest, wall: 0, curtain: { enabled: true, material: 'x', color: 'y', open: 900 } }).openings[0].curtain.material, 'linen');
+    assert.equal(file({ ...rest, kind: 'door', wall: 0, curtain }).openings[0].curtain, undefined, 'doors have no curtains');
+});

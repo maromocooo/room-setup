@@ -6,10 +6,12 @@
 //     hinge: 'start' | 'end',       // doors: jamb nearer the wall's start or end
 //     side: 1 | -1,                 // doors: swing towards the wall's left (+1) or right (-1)
 //     color,                        // doors: id from DOOR_COLORS
-//     open }                        // doors: how far open in the 3D view, 0–100 (%)
+//     open,                         // doors: how far open in the 3D view, 0–100 (%)
+//     curtain }                     // windows: see core/curtains.js; `side` is the room side
 //
 // Preset ids are stored in project files; never rename them.
 
+import { normalizeCurtain } from './curtains.js';
 import { distanceToSegment, wallLength } from './geometry.js';
 import { FLOOR_PRESETS } from './textures.js';
 
@@ -87,6 +89,7 @@ export function clampOpening(opening, wall, ceilingHeight = 240) {
     const sill = Math.max(0, Math.min(opening.sill, ceilingHeight - MIN_SIZE - 5));
     const height = Math.max(MIN_SIZE, Math.min(opening.height, ceilingHeight - 5 - sill));
     const half = width / 2;
+    if (opening.curtain !== undefined) opening = { ...opening, curtain: normalizeCurtain(opening.curtain) };
     if (opening.open !== undefined) opening = { ...opening, open: Math.max(0, Math.min(100, Number(opening.open) || 0)) };
     const offset = Math.min(Math.max(opening.offset, half + EDGE_MARGIN), Math.max(half + EDGE_MARGIN, length - half - EDGE_MARGIN));
     return { ...opening, width, height, sill, offset };

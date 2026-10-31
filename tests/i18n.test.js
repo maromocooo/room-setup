@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { messages, resolveLanguage, translate } from '../src/core/i18n.js';
 import { FLOOR_PRESETS, WALL_PRESETS } from '../src/core/textures.js';
 import { DOOR_COLORS, OPENING_PRESETS, STYLES } from '../src/core/openings.js';
+import { CURTAIN_MATERIALS } from '../src/core/curtains.js';
 import { KELVIN_MARKS, LIGHT_PRESETS, TIMES_OF_DAY } from '../src/core/lights.js';
 
 test('both locales define exactly the same keys', () => {
@@ -18,6 +19,7 @@ test('every key referenced from markup and presets exists', () => {
     const keys = [...html.matchAll(/data-i18n(?:-[a-z-]+)?="([^"]+)"/g)].map(m => m[1]);
     keys.push(...[...FLOOR_PRESETS, ...WALL_PRESETS].map(p => `finish.preset.${p.id}`));
     for (const engine of ['hunyuan3d', 'trellis2', 'trellis', 'pixal3d', 'sam3d', 'mock']) keys.push(`engine.desc.${engine}`);
+    keys.push(...CURTAIN_MATERIALS.map(m => `curtain.material.${m.id}`));
     keys.push(...OPENING_PRESETS.map(p => `opening.preset.${p.id}`), ...DOOR_COLORS.map(c => `opening.color.${c.id}`));
     keys.push(...LIGHT_PRESETS.map(p => `light.preset.${p.id}`), ...KELVIN_MARKS.map(m => `light.kelvin.${m.id}`), ...TIMES_OF_DAY.map(t => `time.${t}`));
     for (const [kind, styles] of Object.entries(STYLES)) keys.push(`opening.kind.${kind}`, ...styles.map(s => `opening.style.${kind}.${s}`));

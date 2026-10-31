@@ -94,6 +94,7 @@ export class RoomScene {
         this.gizmo = new FurnitureGizmo({
             camera: this.camera, domElement: renderer.domElement, scene, orbit: this.controls,
             onChange: object => this.onTransform?.(object.userData.furnitureId),
+            onDragStart: () => this.onFurnitureDragStart?.(),
         });
         // Arrows for moving the selected light (including lights in furniture).
         this.lightGizmo = new FurnitureGizmo({

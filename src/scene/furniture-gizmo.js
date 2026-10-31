@@ -157,6 +157,7 @@ export class FurnitureGizmo {
         this.dragging = true;
         this.orbit.enabled = false;
         this._rotateStart = { angle, rotation: this.object.rotation.y };
+        this.onDragStart?.(this.object);
     }
 
     _onPointerMove(e) {

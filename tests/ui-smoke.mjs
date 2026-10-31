@@ -126,6 +126,133 @@ try {
     await new Promise(r => setTimeout(r, 1500));
     await step(page, '06-room');
 
+    // Doors and windows are listed, and can be edited from there, in the 3D view too.
+    await page.click('[data-view="room"]');
+    await page.click('[data-tab="room"]');
+    const listed = await page.evaluate(async () => {
+        const { createOpening, findOpeningPreset } = await import('/src/core/openings.js');
+        const { store } = window.roomSetup;
+        const wall = store.walls[0];
+        const at = t => ({ x: wall.start.x + (wall.end.x - wall.start.x) * t, y: wall.start.y + (wall.end.y - wall.start.y) * t });
+        const door = createOpening(findOpeningPreset('door-hinged'), wall, at(0.25), store.ceilingHeight);
+        const pane = createOpening(findOpeningPreset('window-fixed'), wall, at(0.75), store.ceilingHeight);
+        store.addOpening(door);
+        store.addOpening(pane);
+        store.selectOpening(null);
+        return { door: door.id, pane: pane.id };
+    });
+    await page.waitForFunction(() => document.querySelectorAll('#openingList li').length === 2);
+    assert.match(await page.$eval('#openingList li:nth-child(1) .list-title', el => el.textContent), /ドア 1/);
+    assert.match(await page.$eval('#openingList li:nth-child(2) .list-title', el => el.textContent), /窓 1/);
+    assert.match(await page.$eval('#openingList li:nth-child(2) .list-meta', el => el.textContent), /壁 1 · .* · 90×90/);
+    assert.equal(await page.$eval('#openingInspector', el => el.hidden), true);
+    await page.click('#openingList li:nth-child(1)');
+    await page.waitForFunction(() => !document.getElementById('openingInspector').hidden);
+    assert.equal(await page.$eval('#openingColorField', el => el.hidden), false, 'a door shows its colours');
+    await page.click('#openingColors [data-color="black"]');
+    assert.equal(await page.evaluate(id => window.roomSetup.store.getOpening(id).color, listed.door), 'black');
+    await page.click('#openingList li:nth-child(2)');
+    await page.waitForFunction(() => !document.getElementById('openingCurtain').hidden);
+    assert.equal(await page.$eval('#openingColorField', el => el.hidden), true);
+    await page.click('#curtainOn');
+    await page.waitForFunction(() => /カーテン/.test(document.querySelector('#openingList li:nth-child(2) .list-meta').textContent));
+    await step(page, '063-opening-list');
+    // Title and details stay readable however long the details get.
+    const titleBox = await page.$eval('#openingList li:nth-child(2) .list-title', el => { const b = el.getBoundingClientRect(); return { width: b.width, inside: b.right <= el.closest('li').getBoundingClientRect().right }; });
+    assert.ok(titleBox.width > 10 && titleBox.inside, 'the title has room');
+    const metaFits = await page.$eval('#openingList li:nth-child(2) .list-meta', el => el.scrollWidth <= el.clientWidth + 1);
+    assert.ok(metaFits, 'the details are not cut off');
+    // Clicking the selected one again closes it; the delete button removes it.
+    await page.click('#openingList li:nth-child(2)');
+    await page.waitForFunction(() => document.getElementById('openingInspector').hidden);
+    await page.hover('#openingList li:nth-child(1)');
+    await page.click('#openingList li:nth-child(1) [data-action="delete"]');
+    await page.waitForFunction(() => document.querySelectorAll('#openingList li').length === 1);
+    assert.equal(await page.$eval('#openingInspector', el => el.hidden), true, 'deleting does not select anything');
+    await page.evaluate(id => window.roomSetup.store.removeOpening(id), listed.pane);
+    await page.waitForFunction(() => document.getElementById('openingListCard').hidden); // nothing placed, no empty card
+
+    // Curtains: only on windows, off until asked for, and every control reaches the window.
+    await page.click('[data-view="plan"]');
+    await page.click('[data-tab="room"]');
+    const windowId = await page.evaluate(async () => {
+        const { createOpening, findOpeningPreset } = await import('/src/core/openings.js');
+        const { store } = window.roomSetup;
+        const wall = store.walls[0];
+        const middle = { x: (wall.start.x + wall.end.x) / 2, y: (wall.start.y + wall.end.y) / 2 };
+        const opening = createOpening(findOpeningPreset('window-sliding'), wall, middle, store.ceilingHeight);
+        store.addOpening(opening);
+        store.selectOpening(opening.id);
+        return opening.id;
+    });
+    const curtainOf = () => page.evaluate(id => window.roomSetup.store.getOpening(id).curtain ?? null, windowId);
+    await page.waitForFunction(() => !document.getElementById('openingCurtain').hidden);
+    assert.equal(await page.$eval('#curtainOff', el => el.checked), true);
+    assert.equal(await page.$eval('#curtainControls', el => el.hidden), true);
+    await page.click('#curtainOn');
+    await page.waitForFunction(() => !document.getElementById('curtainControls').hidden);
+    assert.equal((await curtainOf()).enabled, true);
+    await page.select('#curtainMaterial', 'velvet');
+    assert.equal((await curtainOf()).material, 'velvet');
+    // Dragging in the picker changes the colour at every step, and is one undo step.
+    await page.evaluate(() => document.getElementById('curtainPicker').scrollIntoView({ block: 'center' }));
+    const area = await (await page.$('.picker-area')).boundingBox();
+    const seen = new Set();
+    await page.mouse.move(area.x + area.width * 0.2, area.y + area.height * 0.2);
+    await page.mouse.down();
+    for (const f of [0.3, 0.5, 0.7, 0.9]) {
+        await page.mouse.move(area.x + area.width * f, area.y + area.height * 0.3, { steps: 2 });
+        seen.add((await curtainOf()).color);
+    }
+    const undoableBefore = await page.evaluate(() => window.roomSetup.store.canUndo);
+    await page.mouse.up();
+    assert.equal(seen.size, 4, 'changes while dragging, before the button is released');
+    assert.ok(undoableBefore);
+    await page.$eval('.picker-hex', el => { el.focus(); el.value = '#3f5566'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    assert.equal((await curtainOf()).color, '#3f5566');
+    await page.$eval('.picker-hex', el => { el.value = 'not a colour'; el.dispatchEvent(new Event('input', { bubbles: true })); el.blur(); });
+    assert.equal((await curtainOf()).color, '#3f5566');
+    assert.equal(await page.$eval('.picker-hex', el => el.value), '#3f5566');
+    await page.$eval('.picker-hue', el => { el.value = '200'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    assert.notEqual((await curtainOf()).color, '#3f5566');
+    await page.$eval('#curtainOpen', el => { el.value = '35'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    assert.equal((await curtainOf()).open, 35);
+    await page.click('#curtainSwatches button');
+    assert.equal((await curtainOf()).color, '#f4f1ea');
+    await page.click('[data-view="room"]');
+    await new Promise(r => setTimeout(r, 800));
+    await step(page, '065-curtains');
+    await page.click('[data-view="plan"]');
+    await page.evaluate(id => window.roomSetup.store.selectOpening(id), windowId);
+    await page.waitForFunction(() => !document.getElementById('openingCurtain').hidden);
+    await page.click('#curtainOff');
+    assert.equal((await curtainOf()).enabled, false);
+    await page.evaluate(id => { const { store } = window.roomSetup; store.removeOpening(id); store.selectOpening(null); }, windowId);
+    await page.click('[data-view="room"]');
+
+    // Undo from the 3D view: a deleted item returns, and it can be taken away again.
+    const countFurniture = () => page.evaluate(() => window.roomSetup.store.furniture.length);
+    const before3D = await countFurniture();
+    assert.ok(before3D >= 1);
+    await page.evaluate(() => { const { store } = window.roomSetup; store.selectFurniture(store.furniture[0].id); });
+    await page.keyboard.press('Delete');
+    await page.waitForFunction(count => window.roomSetup.store.furniture.length === count - 1, {}, before3D);
+    assert.equal(await page.$eval('#undoRoom', el => el.disabled), false);
+    await page.click('#undoRoom');
+    await page.waitForFunction(count => window.roomSetup.store.furniture.length === count, {}, before3D);
+    assert.ok(await page.evaluate(() => { const { store, scene } = window.roomSetup; return store.furniture.every(f => f.object.parent === scene.furnitureGroup); }), 'back in the scene');
+    await page.click('#redoRoom');
+    await page.waitForFunction(count => window.roomSetup.store.furniture.length === count - 1, {}, before3D);
+    await page.keyboard.down('Control');
+    await page.keyboard.press('z');
+    await page.keyboard.up('Control');
+    await page.waitForFunction(count => window.roomSetup.store.furniture.length === count, {}, before3D);
+    // Moving with the plan's numbers, the floor and the ceiling.
+    const floorBefore = await page.evaluate(() => JSON.stringify(window.roomSetup.store.floor));
+    await page.evaluate(() => window.roomSetup.store.setFloor({ scale: 3 }));
+    await page.click('#undoRoom');
+    assert.equal(await page.evaluate(() => JSON.stringify(window.roomSetup.store.floor)), floorBefore);
+
     // Walk mode: W moves the eye-level camera, Esc ends the walk.
     await page.click('#walkToggle');
     assert.equal(await page.$eval('#walkBar', el => el.hidden), false);

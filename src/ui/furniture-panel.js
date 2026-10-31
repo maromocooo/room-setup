@@ -22,6 +22,7 @@ export function setupFurniturePanel({ store, onEdit, onDuplicate, onDelete, onTi
     fields.name.addEventListener('input', () => {
         const item = selected();
         if (!item) return;
+        store.checkpoint('name');
         item.name = fields.name.value.trim() || item.name;
         renderList();
         store.emit('furniture');
@@ -32,6 +33,7 @@ export function setupFurniturePanel({ store, onEdit, onDuplicate, onDelete, onTi
             const item = selected();
             const value = Number(fields[axis].value);
             if (!item || !Number.isFinite(value)) return;
+            store.checkpoint();
             item.object.position[axis] = axis === 'y' ? Math.max(0, value / 100) : value / 100;
             store.emit('furniture');
         });
@@ -40,6 +42,7 @@ export function setupFurniturePanel({ store, onEdit, onDuplicate, onDelete, onTi
     const setRotation = degrees => {
         const item = selected();
         if (!item || !Number.isFinite(degrees)) return;
+        store.checkpoint('rotation');
         item.object.rotation.y = THREE_DEG * (((degrees % 360) + 360) % 360);
         store.emit('furniture');
     };

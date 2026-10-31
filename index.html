@@ -51,8 +51,8 @@
                     <button type="button" class="tool" data-tool="select" data-i18n-title="plan.tool.select"><i data-icon="select"></i></button>
                     <button type="button" class="tool" data-tool="erase" data-i18n-title="plan.tool.erase"><i data-icon="erase"></i></button>
                     <span class="toolbar-sep"></span>
-                    <button type="button" class="tool" id="undo" data-i18n-title="plan.undo"><i data-icon="undo"></i></button>
-                    <button type="button" class="tool" id="redo" data-i18n-title="plan.redo"><i data-icon="redo"></i></button>
+                    <button type="button" class="tool" id="undo" data-history="undo" data-i18n-title="plan.undo"><i data-icon="undo"></i></button>
+                    <button type="button" class="tool" id="redo" data-history="redo" data-i18n-title="plan.redo"><i data-icon="redo"></i></button>
                     <button type="button" class="tool" id="zoomFit" data-i18n-title="plan.fit"><i data-icon="fit"></i></button>
                 </div>
 
@@ -89,6 +89,9 @@
                 <div class="room-canvas" id="roomCanvas"></div>
 
                 <div class="float float-top-left toolbar" role="toolbar">
+                    <button type="button" class="tool" id="undoRoom" data-history="undo" data-i18n-title="plan.undo"><i data-icon="undo"></i></button>
+                    <button type="button" class="tool" id="redoRoom" data-history="redo" data-i18n-title="plan.redo"><i data-icon="redo"></i></button>
+                    <span class="toolbar-sep"></span>
                     <button type="button" class="tool" data-camera="orbit" data-i18n-title="room.camera.orbit"><i data-icon="orbit"></i></button>
                     <button type="button" class="tool" data-camera="top" data-i18n-title="room.camera.top"><i data-icon="top"></i></button>
                     <button type="button" class="tool" data-camera="inside" data-i18n-title="room.camera.inside"><i data-icon="person"></i></button>
@@ -144,6 +147,11 @@
 
             <!-- Room -->
             <div class="panel" data-panel="room">
+                <section class="card" id="openingListCard" hidden>
+                    <header class="card-header"><h2 data-i18n="opening.placed"></h2></header>
+                    <ul class="list" id="openingList"></ul>
+                </section>
+
                 <section class="card inspector-card" id="openingInspector" hidden>
                     <header class="card-header">
                         <h2 id="openingTitle"></h2>
@@ -168,6 +176,26 @@
                     <label class="field" id="openingOpenField"><span data-i18n="opening.open"></span>
                         <span class="range-with-value"><input type="range" id="openingOpen" min="0" max="100" step="1"><output class="value-chip" id="openingOpenValue"></output></span>
                     </label>
+                    <fieldset class="field curtain-field" id="openingCurtain">
+                        <legend class="field-label" data-i18n="curtain.title"></legend>
+                        <div class="radio-row" role="radiogroup">
+                            <label><input type="radio" name="curtainEnabled" value="off" id="curtainOff"> <span data-i18n="curtain.off"></span></label>
+                            <label><input type="radio" name="curtainEnabled" value="on" id="curtainOn"> <span data-i18n="curtain.on"></span></label>
+                        </div>
+                        <div class="curtain-controls" id="curtainControls">
+                            <label class="field"><span data-i18n="curtain.material"></span>
+                                <select class="select" id="curtainMaterial"></select></label>
+                            <div class="field">
+                                <span class="field-label" data-i18n="curtain.color"></span>
+                                <div class="color-chips" id="curtainSwatches"></div>
+                                <div class="color-picker" id="curtainPicker"></div>
+                            </div>
+                            <label class="field"><span data-i18n="curtain.open"></span>
+                                <span class="range-with-value"><input type="range" id="curtainOpen" min="0" max="100" step="1"><output class="value-chip" id="curtainOpenValue"></output></span>
+                            </label>
+                            <button type="button" class="btn" id="curtainFlip"><span data-i18n="curtain.flip"></span></button>
+                        </div>
+                    </fieldset>
                     <div class="button-row" id="openingDoorControls">
                         <button type="button" class="btn" id="openingFlipHinge"><span id="openingFlipHingeLabel"></span></button>
                         <button type="button" class="btn" id="openingFlipSide"><span data-i18n="opening.flipSide"></span></button>

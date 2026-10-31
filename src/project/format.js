@@ -12,6 +12,7 @@
 // Version 2 and earlier came from the original Room Designer; parseProject
 // reads them too.
 
+import { normalizeCurtain } from '../core/curtains.js';
 import { findPreset } from '../core/textures.js';
 
 export const FORMAT = 'room-setup';
@@ -138,6 +139,7 @@ export function parseProject(data) {
             side: o.side === -1 ? -1 : 1,
             ...(o.kind === 'door' && typeof o.color === 'string' ? { color: o.color } : {}),
             ...(o.kind === 'door' && Number.isFinite(o.open) ? { open: Math.max(0, Math.min(100, o.open)) } : {}),
+            ...(o.kind === 'window' && normalizeCurtain(o.curtain) ? { curtain: normalizeCurtain(o.curtain) } : {}),
         }));
 
     const lights = (modern && Array.isArray(data.lights) ? data.lights : [])

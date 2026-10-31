@@ -38,6 +38,10 @@ BROWSER_HEADERS = {
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 FLOOR_PRESETS = ["oak", "hardMaple", "ashClear", "sycamore", "elm", "acacia", "blackCherry", "blackWalnut"]
 WALL_PRESETS = ["standard", "woven", "plaster", "greige", "sage", "charcoal"]
+# Mirrors src/core/curtains.js.
+CURTAIN_MATERIALS = ("linen", "cotton", "velvet", "sheer", "blackout")
+DEFAULT_CURTAIN = {"enabled": True, "material": "linen", "color": "#d8d0c2", "open": 70}
+
 # Mirrors OPENING_PRESETS in src/core/openings.js: (kind, style, width, height, sill) in cm.
 OPENING_PRESETS = {
     "door-hinged": ("door", "hinged", 80, 200, 0),
@@ -300,6 +304,7 @@ def describe_opening(opening: dict, walls: list[dict]) -> dict:
         **({"hinge": opening.get("hinge"), "opens_to_side": opening.get("side"), "color": opening.get("color", "white"),
             "open_percent": opening.get("open", 25)}
            if opening["kind"] == "door" else {}),
+        **({"curtain": opening["curtain"]} if opening["kind"] == "window" and opening.get("curtain") else {}),
     }
 
 
@@ -502,8 +507,16 @@ async def update_opening(
     open_percent: float | None = None,
     flip_hinge: bool = False,
     flip_side: bool = False,
+    curtain: bool | None = None,
+    curtain_material: str | None = None,
+    curtain_color: str | None = None,
+    curtain_open_percent: float | None = None,
 ) -> dict:
-    """Resize or move a door/window (x/y move its centre along/onto a wall), change its style
+    """Windows can have curtains: curtain turns them on or off, curtain_material is one of
+    linen, cotton, velvet, sheer, blackout, curtain_color is any #rrggbb, and curtain_open_percent
+    says how far drawn back they are (0 closed, 100 open, tied back). flip_side moves them to the other face.
+
+    Resize or move a door/window (x/y move its centre along/onto a wall), change its style
     (doors: hinged, double, sliding, opening; windows: sliding, fixed, casement), set a door's color
     (white, maple, oak, walnut, grey, black) or how far it is open in 3D (open_percent 0–100), or flip a
     door's hinge side (for sliding doors: the direction it slides) or the side it opens to."""
@@ -521,6 +534,25 @@ async def update_opening(
                 opening[key] = float(value)
         if style:
             opening["style"] = style
+        if curtain is not None or curtain_material or curtain_color or curtain_open_percent is not None:
+            if opening["kind"] != "window":
+                raise ValueError("Only windows have curtains.")
+            current = {**DEFAULT_CURTAIN, "enabled": False, **(opening.get("curtain") or {})}
+            if curtain is not None:
+                current["enabled"] = curtain
+            elif curtain_material or curtain_color or curtain_open_percent is not None:
+                current["enabled"] = True  # asking for a colour means wanting the curtain
+            if curtain_material:
+                if curtain_material not in CURTAIN_MATERIALS:
+                    raise ValueError(f"Unknown curtain material {curtain_material!r}. Use one of {CURTAIN_MATERIALS}.")
+                current["material"] = curtain_material
+            if curtain_color:
+                if not re.fullmatch(r"#[0-9a-fA-F]{6}", curtain_color):
+                    raise ValueError("curtain_color must look like #d8d0c2.")
+                current["color"] = curtain_color.lower()
+            if curtain_open_percent is not None:
+                current["open"] = max(0.0, min(100.0, float(curtain_open_percent)))
+            opening["curtain"] = current
         if color:
             if color not in DOOR_COLORS:
                 raise ValueError(f"Unknown door color. Use one of {DOOR_COLORS}.")

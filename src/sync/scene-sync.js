@@ -153,7 +153,7 @@ export function setupSceneSync({ store, scene, plan, nameFor }) {
                 if (w.id) wall.id = w.id;
                 return wall;
             });
-            if (wallsKey(walls) !== wallsKey(store.walls)) store.setWalls(walls);
+            if (wallsKey(walls) !== wallsKey(store.walls)) store.setWalls(walls, { record: false });
             const openings = (document.openings ?? []).filter(o => store.walls.some(w => w.id === o.wallId));
             if (JSON.stringify(openings) !== JSON.stringify(store.openings)) {
                 store.openings = openings;
@@ -167,7 +167,7 @@ export function setupSceneSync({ store, scene, plan, nameFor }) {
                 if (!lights.some(l => l.id === store.selectedLightId)) store.selectedLightId = null;
                 store.emit('lights');
             }
-            if (document.timeOfDay && document.timeOfDay !== store.timeOfDay) store.setTimeOfDay(document.timeOfDay);
+            if (document.timeOfDay && document.timeOfDay !== store.timeOfDay) store.setTimeOfDay(document.timeOfDay, { record: false });
             if (document.floor) store.floor = { ...document.floor };
             if (document.wall) store.wall = { ...document.wall };
             applyFurniture(document.furniture ?? []);

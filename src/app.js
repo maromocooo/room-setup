@@ -54,6 +54,7 @@ export function startApp() {
         object.position.set(center.x + (n % 3) * 0.35, 0, center.z + Math.floor(n / 3) % 3 * 0.35);
         const item = { id, name: nextName(), object, dimensions, thumbnail, engine, modelUrl, modelLayout: 'raw', loadedDimensions: { ...dimensions } };
         object.userData.furnitureId = id;
+        store.checkpoint();
         store.addFurniture(item);
         scene.syncFurniture();
         store.selectFurniture(id);
@@ -66,43 +67,38 @@ export function startApp() {
         object.position.z += 0.3;
         const id = `${item.id}-${Date.now().toString(36)}`;
         object.userData.furnitureId = id;
+        store.checkpoint();
         store.addFurniture({ ...item, id, name: t('furniture.copyName', { name: item.name }), object, footprint: undefined });
         scene.syncFurniture();
         store.selectFurniture(id);
     }
 
-    // Removed furniture stays in memory briefly so "Undo" can bring it back,
-    // then its GPU resources are released.
-    const DISPOSE_DELAY_MS = 15000;
+    // The history keeps removed furniture so undo can bring it back; once it no
+    // longer can, the GPU resources are released.
     let dismissUndo = null;
-    store.onRemoved = item => {
-        setTimeout(() => {
-            if (store.furniture.includes(item)) return; // brought back with Undo
-            disposeObject(item.object);
-            // Lights that lived in this item go too.
-            if (store.lights.some(l => l.attach?.furnitureId === item.id)) {
-                store.lights = store.lights.filter(l => l.attach?.furnitureId !== item.id);
-                store.emit('lights');
-            }
-        }, DISPOSE_DELAY_MS);
+    store.onRemoved = item => disposeObject(item.object);
+    store.onTiltRestored = item => {
+        setTilt(item.object, item.tilt ?? { x: 0, y: 0, z: 0 }, item.dimensions);
+        delete item.footprint;
+        if (item.modelLayout !== 'raw') sync.invalidateModel(item);
     };
 
+    function undo() {
+        store.undo();
+        scene.syncFurniture();
+    }
+
+    function redo() {
+        store.redo();
+        scene.syncFurniture();
+    }
+
     function remove(item) {
-        const index = store.furniture.indexOf(item);
+        store.checkpoint();
         store.removeFurniture(item.id);
         scene.syncFurniture();
         dismissUndo?.();
-        dismissUndo = toast(t('toast.deleted', { name: item.name }), {
-            action: {
-                label: t('toast.undo'),
-                onClick: () => {
-                    store.furniture.splice(Math.min(index, store.furniture.length), 0, item);
-                    store.emit('furniture');
-                    scene.syncFurniture();
-                    store.selectFurniture(item.id);
-                },
-            },
-        });
+        dismissUndo = toast(t('toast.deleted', { name: item.name }), { action: { label: t('toast.undo'), onClick: undo } });
     }
 
     const meshEditor = new MeshEditor($('meshEditor'), {
@@ -142,6 +138,7 @@ export function startApp() {
 
     // Fix a model that was generated upside down or on its side.
     function tilt(item, turn) {
+        store.checkpoint();
         const orient = item.object.getObjectByName('rs-orient');
         if (!item.tilt && orient) {
             const deg = r => Math.round(r * 180 / Math.PI * 100) / 100;
@@ -175,6 +172,7 @@ export function startApp() {
         if (final) lightDrag = null;
     };
     scene.onTransform = () => { store.emit('furniture'); };
+    scene.onFurnitureDragStart = () => store.checkpoint();
 
     store.on('walls room finish openings', () => scene.rebuildRoom());
     store.on('lights room furniture', () => scene.syncLights());
@@ -183,7 +181,7 @@ export function startApp() {
     store.on('furniture', () => scene.syncFurniture());
     store.on('selection', () => scene.syncSelection());
     store.on('walls', updateEmptyStates);
-    store.on('walls', updateUndo);
+    store.on('history', updateUndo);
     let lastSelection = {};
     store.on('selection', () => {
         // Jump to the tab that edits whatever was just selected.
@@ -213,8 +211,8 @@ export function startApp() {
         lightsPanel.render();
     }
     for (const button of document.querySelectorAll('[data-tool]')) button.addEventListener('click', () => setTool(button.dataset.tool));
-    $('undo').addEventListener('click', () => store.undo());
-    $('redo').addEventListener('click', () => store.redo());
+    for (const button of document.querySelectorAll('[data-history="undo"]')) button.addEventListener('click', undo);
+    for (const button of document.querySelectorAll('[data-history="redo"]')) button.addEventListener('click', redo);
     $('zoomFit').addEventListener('click', () => plan.fit());
     $('gridSize').addEventListener('change', e => plan.setGrid(Number(e.target.value)));
     $('unitSelect').addEventListener('change', e => {
@@ -249,8 +247,8 @@ export function startApp() {
     }
 
     function updateUndo() {
-        $('undo').disabled = !store.canUndo;
-        $('redo').disabled = !store.canRedo;
+        for (const button of document.querySelectorAll('[data-history="undo"]')) button.disabled = !store.canUndo;
+        for (const button of document.querySelectorAll('[data-history="redo"]')) button.disabled = !store.canRedo;
     }
 
     function updateEmptyStates() {
@@ -361,8 +359,8 @@ export function startApp() {
     window.addEventListener('keydown', e => {
         if (isTyping(e) || $('meshEditor').open) return;
         const mod = e.ctrlKey || e.metaKey;
-        if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? store.redo() : store.undo(); return; }
-        if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo(); return; }
+        if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+        if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
         if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); $('saveProject').click(); return; }
         if (mod || e.altKey) return;
         const key = e.key.toLowerCase();
@@ -388,6 +386,7 @@ export function startApp() {
             else if (view === 'plan') plan.deleteSelectedWall();
         } else if (key === 'r' && store.selectedFurnitureId) {
             const item = store.getFurniture(store.selectedFurnitureId);
+            store.checkpoint();
             item.object.rotation.y += (e.shiftKey ? -1 : 1) * Math.PI / 2;
             store.emit('furniture');
         } else if (view === 'room' && key === 't') { scene.setGizmoMode('translate'); syncToolbars(); }
@@ -405,7 +404,7 @@ export function startApp() {
     updateEmptyStates();
     showTab('room');
     showView('plan');
-    store.setCeilingHeight(store.ceilingHeight);
+    store.setCeilingHeight(store.ceilingHeight, { record: false });
     store.dirty = false;
     requestAnimationFrame(() => plan.fit());
 

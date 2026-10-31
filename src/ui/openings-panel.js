@@ -2,7 +2,10 @@
 // for the selected opening.
 
 import { DEFAULT_DOOR_COLOR, DEFAULT_DOOR_OPEN, DOOR_COLORS, OPENING_PRESETS, STYLES, findDoorColor } from '../core/openings.js';
+import { CURTAIN_MATERIALS, DEFAULT_CURTAIN } from '../core/curtains.js';
 import { swatchUrl } from '../core/textures.js';
+import { createColorPicker } from './color-picker.js';
+import { icon } from './icons.js';
 import { t } from '../core/i18n.js';
 
 // Small plan-symbol previews for the preset buttons (64×40 viewBox).
@@ -50,6 +53,59 @@ export function setupOpeningsPanel({ store, plan, onArm }) {
         chips.appendChild(chip);
     }
 
+    // Everything placed so far, so doors and windows can be edited from any view.
+    const list = $('openingList');
+    list.addEventListener('click', event => {
+        const row = event.target.closest('[data-opening-id]');
+        if (!row) return;
+        const id = row.dataset.openingId;
+        if (event.target.closest('[data-action="delete"]')) {
+            store.removeOpening(id);
+            return;
+        }
+        store.selectOpening(store.selectedOpeningId === id ? null : id);
+        // The inspector may be open already, and scrolled out of sight.
+        if (store.selectedOpeningId) $('openingInspector').scrollIntoView({ block: 'nearest' });
+    });
+
+    function renderList() {
+        $('openingListCard').hidden = !store.openings.length;
+        const counts = { door: 0, window: 0 };
+        list.replaceChildren(...store.openings.map(opening => {
+            counts[opening.kind] += 1;
+            const curtain = opening.kind === 'window' && opening.curtain?.enabled ? opening.curtain : null;
+            const row = document.createElement('li');
+            row.className = 'list-row selectable';
+            row.dataset.openingId = opening.id;
+            row.setAttribute('aria-selected', String(opening.id === store.selectedOpeningId));
+            row.innerHTML = `
+                <span class="opening-dot"></span>
+                <span class="opening-labels"><span class="list-title"></span><span class="list-meta"></span></span>
+                <button type="button" class="icon-btn small" data-action="delete">${icon('erase')}</button>`;
+            const dot = row.querySelector('.opening-dot');
+            if (opening.kind === 'door') {
+                const finish = findDoorColor(opening.color ?? DEFAULT_DOOR_COLOR);
+                dot.style.background = `rgb(${finish.color.join(' ')})`;
+            } else if (curtain) {
+                dot.style.background = curtain.color;
+            } else {
+                dot.dataset.empty = 'true';
+            }
+            row.querySelector('.list-title').textContent = t(`opening.list.${opening.kind}`, { number: counts[opening.kind] });
+            const wall = store.walls.findIndex(w => w.id === opening.wallId) + 1;
+            row.querySelector('.list-meta').textContent = [
+                t('wall.item', { number: wall }),
+                t(`opening.style.${opening.kind}.${opening.style}`),
+                `${Math.round(opening.width)}×${Math.round(opening.height)}`,
+                curtain ? t('curtain.title') : null,
+            ].filter(Boolean).join(' · ');
+            const remove = row.querySelector('[data-action="delete"]');
+            remove.setAttribute('aria-label', t('inspector.delete'));
+            remove.title = t('inspector.delete');
+            return row;
+        }));
+    }
+
     const selected = () => store.getOpening(store.selectedOpeningId);
     const update = patch => { const o = selected(); if (o) store.updateOpening(o.id, patch); };
     const numeric = (id, apply) => $(id).addEventListener('change', () => {
@@ -76,6 +132,38 @@ export function setupOpeningsPanel({ store, plan, onArm }) {
         store.updateOpening(o.id, { open: Number(openSlider.value) }, { record: recordOpen });
         recordOpen = false;
     });
+    // ---- curtain ----
+    const SWATCHES = ['#f4f1ea', '#d8d0c2', '#a89f91', '#6f7f6a', '#3f5566', '#8c4a3c', '#2d2d30'];
+    const curtainOf = o => o.curtain ?? { ...DEFAULT_CURTAIN, enabled: false };
+    const updateCurtain = (patch, options) => {
+        const o = selected();
+        if (o) store.updateOpening(o.id, { curtain: { ...curtainOf(o), ...patch } }, options);
+    };
+    for (const radio of [$('curtainOn'), $('curtainOff')]) {
+        radio.addEventListener('change', () => updateCurtain({ enabled: $('curtainOn').checked }));
+    }
+    $('curtainMaterial').addEventListener('change', () => updateCurtain({ material: $('curtainMaterial').value }));
+    for (const color of SWATCHES) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'color-chip';
+        chip.dataset.color = color;
+        chip.style.background = color;
+        chip.setAttribute('aria-label', color);
+        chip.addEventListener('click', () => updateCurtain({ color }));
+        $('curtainSwatches').appendChild(chip);
+    }
+    // Colour and opening update live; one undo step per gesture.
+    const picker = createColorPicker($('curtainPicker'), { onChange: (color, options) => updateCurtain({ color }, options) });
+    const curtainOpen = $('curtainOpen');
+    let recordCurtainOpen = true;
+    for (const type of ['pointerdown', 'keydown']) curtainOpen.addEventListener(type, () => { recordCurtainOpen = true; });
+    curtainOpen.addEventListener('input', () => {
+        updateCurtain({ open: Number(curtainOpen.value) }, { record: recordCurtainOpen });
+        recordCurtainOpen = false;
+    });
+    $('curtainFlip').addEventListener('click', () => { const o = selected(); if (o) update({ side: -(o.side || 1) }); });
+
     $('openingStyle').addEventListener('change', () => update({ style: $('openingStyle').value }));
     $('openingFlipHinge').addEventListener('click', () => { const o = selected(); if (o) update({ hinge: o.hinge === 'end' ? 'start' : 'end' }); });
     $('openingFlipSide').addEventListener('click', () => { const o = selected(); if (o) update({ side: -(o.side || 1) }); });
@@ -83,6 +171,7 @@ export function setupOpeningsPanel({ store, plan, onArm }) {
     $('openingClose').addEventListener('click', () => store.selectOpening(null));
 
     function render() {
+        renderList();
         for (const button of presets.children) {
             const preset = OPENING_PRESETS.find(p => p.id === button.dataset.preset);
             button.querySelector('span').textContent = t(`opening.preset.${preset.id}`);
@@ -122,6 +211,21 @@ export function setupOpeningsPanel({ store, plan, onArm }) {
         $('openingOpenField').hidden = !isDoor || opening.style === 'opening';
         if (active !== openSlider) openSlider.value = open;
         $('openingOpenValue').textContent = `${Math.round(open)}%`;
+
+        $('openingCurtain').hidden = isDoor;
+        if (!isDoor) {
+            const curtain = curtainOf(opening);
+            $('curtainOn').checked = curtain.enabled;
+            $('curtainOff').checked = !curtain.enabled;
+            $('curtainControls').hidden = !curtain.enabled;
+            const material = $('curtainMaterial');
+            material.replaceChildren(...CURTAIN_MATERIALS.map(m => new Option(t(`curtain.material.${m.id}`), m.id)));
+            material.value = curtain.material;
+            picker.set(curtain.color);
+            if (active !== $('curtainOpen')) $('curtainOpen').value = curtain.open;
+            $('curtainOpenValue').textContent = `${Math.round(curtain.open)}%`;
+            for (const chip of $('curtainSwatches').children) chip.setAttribute('aria-checked', String(chip.dataset.color === curtain.color));
+        }
     }
 
     store.on('openings selection walls room', render);

@@ -1,4 +1,4 @@
-// Application state plus wall undo history. Views subscribe to change events:
+// Application state plus undo history. Views subscribe to change events:
 //   'walls'      wall geometry or per-wall finishes changed
 //   'openings'   doors/windows added, removed or edited
 //   'lights'     light fixtures added, removed or edited
@@ -7,9 +7,13 @@
 //   'finish'     floor or default wall finish changed
 //   'furniture'  furniture added, removed, renamed or moved
 //   'selection'  selected wall, opening or furniture changed
+//   'history'    what can be undone or redone changed
 //
 // A finish is { preset: id } or { image: dataUrl }. Openings are described in
-// openings.js; undo covers walls and openings together.
+// openings.js. Undo covers everything a person edits: the plan, finishes, lights,
+// and furniture being added, removed, moved or renamed. A furniture model's own
+// shape (the mesh editor) is not covered, and neither are changes that arrive from
+// outside (the assistant): undoing goes back to a state as it was saved here.
 
 import { mergeWalls } from './geometry.js';
 import { clampOpening, reanchorOpenings } from './openings.js';
@@ -29,6 +33,9 @@ const cloneWalls = walls => walls.map(w => ({ ...w, start: { ...w.start }, end: 
 const cloneOpenings = openings => openings.map(o => ({ ...o }));
 const cloneLights = lights => lights.map(l => ({ ...l }));
 
+const HISTORY_LIMIT = 100;
+const COALESCE_MS = 700;
+
 export class Store extends EventTarget {
     constructor() {
         super();
@@ -47,10 +54,11 @@ export class Store extends EventTarget {
         this.dirty = false;
         this._undo = [];
         this._redo = [];
+        this._removed = new Set(); // furniture taken out, kept while the history can bring it back
     }
 
     emit(type) {
-        if (type !== 'selection') this.dirty = true;
+        if (type !== 'selection' && type !== 'history') this.dirty = true;
         this.dispatchEvent(new Event(type));
     }
 
@@ -58,16 +66,59 @@ export class Store extends EventTarget {
         for (const type of types.split(' ')) this.addEventListener(type, handler);
     }
 
-    // ---- walls (undoable) ----
-    snapshotPlan() {
-        return { walls: cloneWalls(this.walls), openings: cloneOpenings(this.openings), lights: cloneLights(this.lights) };
+    // ---- undo ----
+    snapshot() {
+        return {
+            walls: cloneWalls(this.walls),
+            openings: cloneOpenings(this.openings),
+            lights: cloneLights(this.lights),
+            ceilingHeight: this.ceilingHeight,
+            floor: { ...this.floor },
+            wall: { ...this.wall },
+            timeOfDay: this.timeOfDay,
+            // The item itself, not a copy: a removed one comes back with its model.
+            furniture: this.furniture.map(item => ({
+                item,
+                name: item.name,
+                position: item.object.position.toArray(),
+                quaternion: item.object.quaternion.toArray(),
+                tilt: item.tilt ? { ...item.tilt } : item.tilt,
+            })),
+        };
     }
 
-    checkpoint() {
-        this._undo.push(this.snapshotPlan());
-        if (this._undo.length > 100) this._undo.shift();
+    /**
+     * Remember the state before a change. Repeated calls with the same `gesture`
+     * in quick succession (a slider being dragged) count as one step.
+     */
+    checkpoint(gesture = null) {
+        const now = Date.now();
+        const continuing = gesture && this._gesture === gesture && now - this._gestureAt < COALESCE_MS;
+        this._gesture = gesture;
+        this._gestureAt = now;
+        if (continuing) return;
+        this._undo.push(this.snapshot());
+        if (this._undo.length > HISTORY_LIMIT) this._undo.shift();
         this._redo = [];
+        this._release();
+        this.emit('history');
     }
+
+    /** Hand back furniture the history can no longer reach, so its memory can be freed. */
+    _release() {
+        if (!this._removed.size) return;
+        const reachable = new Set();
+        for (const state of [...this._undo, ...this._redo]) for (const entry of state.furniture) reachable.add(entry.item);
+        for (const item of this._removed) {
+            if (this.furniture.includes(item)) this._removed.delete(item);
+            else if (!reachable.has(item)) {
+                this._removed.delete(item);
+                this.onRemoved?.(item);
+            }
+        }
+    }
+
+    // ---- walls ----
 
     setWalls(walls, { record = true } = {}) {
         const merged = mergeWalls(walls);
@@ -84,16 +135,40 @@ export class Store extends EventTarget {
         if (openingCount || this.openings.length) this.emit('openings');
     }
 
-    _restorePlan(snapshot) {
-        this.walls = snapshot.walls;
-        this.openings = snapshot.openings;
-        this.lights = snapshot.lights ?? this.lights;
+    _restore(state) {
+        this.walls = state.walls;
+        this.openings = state.openings;
+        this.lights = state.lights;
+        this.ceilingHeight = state.ceilingHeight;
+        this.floor = state.floor;
+        this.wall = state.wall;
+        const timeChanged = this.timeOfDay !== state.timeOfDay;
+        this.timeOfDay = state.timeOfDay;
+        for (const item of this.furniture) if (!state.furniture.some(entry => entry.item === item)) this._removed.add(item);
+        this.furniture = state.furniture.map(entry => {
+            const { item } = entry;
+            this._removed.delete(item);
+            item.name = entry.name;
+            item.object.position.fromArray(entry.position);
+            item.object.quaternion.fromArray(entry.quaternion);
+            if (JSON.stringify(entry.tilt ?? null) !== JSON.stringify(item.tilt ?? null)) {
+                item.tilt = entry.tilt;
+                this.onTiltRestored?.(item);
+            }
+            return item;
+        });
         if (!this.lights.some(l => l.id === this.selectedLightId)) this.selectedLightId = null;
         if (!this.walls.some(w => w.id === this.selectedWallId)) this.selectedWallId = null;
         if (!this.openings.some(o => o.id === this.selectedOpeningId)) this.selectedOpeningId = null;
+        if (!this.furniture.some(f => f.id === this.selectedFurnitureId)) this.selectedFurnitureId = null;
+        this.emit('room');
+        this.emit('finish');
         this.emit('walls');
         this.emit('openings');
         this.emit('lights');
+        if (timeChanged) this.emit('lighting');
+        this.emit('furniture');
+        this.emit('selection');
     }
 
     /** Call after mutating wall objects in place (e.g. while dragging). */
@@ -104,6 +179,8 @@ export class Store extends EventTarget {
     resetHistory() {
         this._undo = [];
         this._redo = [];
+        this._release();
+        this.emit('history');
     }
 
     get canUndo() { return this._undo.length > 0; }
@@ -111,17 +188,21 @@ export class Store extends EventTarget {
 
     undo() {
         if (!this._undo.length) return;
-        this._redo.push(this.snapshotPlan());
-        this._restorePlan(this._undo.pop());
+        this._gesture = null;
+        this._redo.push(this.snapshot());
+        this._restore(this._undo.pop());
+        this.emit('history');
     }
 
     redo() {
         if (!this._redo.length) return;
-        this._undo.push(this.snapshotPlan());
-        this._restorePlan(this._redo.pop());
+        this._gesture = null;
+        this._undo.push(this.snapshot());
+        this._restore(this._redo.pop());
+        this.emit('history');
     }
 
-    // ---- doors & windows (undoable) ----
+    // ---- doors & windows ----
     getOpening(id) {
         return this.openings.find(o => o.id === id) ?? null;
     }
@@ -152,7 +233,7 @@ export class Store extends EventTarget {
         this.emit('selection');
     }
 
-    // ---- lights (undoable) ----
+    // ---- lights ----
     getLight(id) {
         return this.lights.find(l => l.id === id) ?? null;
     }
@@ -185,7 +266,8 @@ export class Store extends EventTarget {
         this.emit('selection');
     }
 
-    setTimeOfDay(time) {
+    setTimeOfDay(time, { record = true } = {}) {
+        if (record && time !== this.timeOfDay) this.checkpoint();
         this.timeOfDay = time;
         this.emit('lighting');
     }
@@ -203,7 +285,8 @@ export class Store extends EventTarget {
     }
 
     // ---- room ----
-    setCeilingHeight(cm) {
+    setCeilingHeight(cm, { record = true } = {}) {
+        if (record && cm !== this.ceilingHeight) this.checkpoint('ceiling');
         this.ceilingHeight = cm;
         // Tall doors and windows must still fit under the new ceiling.
         const byId = new Map(this.walls.map(w => [w.id, w]));
@@ -213,12 +296,14 @@ export class Store extends EventTarget {
     }
 
     setFloor(patch) {
-        Object.assign(this.floor, patch);
+        this.checkpoint('floor');
+        this.floor = { ...this.floor, ...patch };
         this.emit('finish');
     }
 
     setWallFinish(patch) {
-        Object.assign(this.wall, patch);
+        this.checkpoint('wall');
+        this.wall = { ...this.wall, ...patch };
         this.emit('finish');
     }
 
@@ -233,8 +318,15 @@ export class Store extends EventTarget {
         if (index === -1) return null;
         const [item] = this.furniture.splice(index, 1);
         if (this.selectedFurnitureId === id) this.selectFurniture(null);
+        // Lights that lived in this item go with it, and come back with it too.
+        if (this.lights.some(l => l.attach?.furnitureId === id)) {
+            this.lights = this.lights.filter(l => l.attach?.furnitureId !== id);
+            if (!this.lights.some(l => l.id === this.selectedLightId)) this.selectedLightId = null;
+            this.emit('lights');
+        }
         this.emit('furniture');
-        this.onRemoved?.(item);
+        this._removed.add(item);
+        this._release();
         return item;
     }
 
@@ -249,7 +341,8 @@ export class Store extends EventTarget {
     }
 
     clear() {
-        this.setWalls([]);
+        this.checkpoint();
+        this.setWalls([], { record: false });
         this.openings = [];
         this.selectedOpeningId = null;
         this.lights = [];

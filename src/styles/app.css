@@ -490,6 +490,53 @@ input[type="text"]:focus, input[type="number"]:focus { outline: none; border-col
     pointer-events: none;
 }
 .input-unit.narrow { width: 84px; flex: none; }
+.curtain-field { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width: 0; }
+.curtain-field legend { padding: 0; margin-bottom: 4px; }
+.radio-row { display: flex; gap: 16px; font-size: 13px; }
+.radio-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.curtain-controls { display: grid; gap: 10px; }
+.opening-labels { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.opening-labels .list-meta { overflow-wrap: anywhere; }
+.opening-dot { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 1px solid var(--border-strong); }
+.opening-dot[data-empty] { background: transparent; }
+.color-picker { display: grid; gap: 8px; margin-top: 8px; }
+.picker-area {
+    --picker-hue: red;
+    position: relative;
+    height: 120px;
+    border-radius: 8px;
+    background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, var(--picker-hue));
+    cursor: crosshair;
+    touch-action: none;
+}
+.picker-thumb {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+    pointer-events: none;
+}
+.picker-hue[type="range"] {
+    width: 100%;
+    height: 12px;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    border-radius: 6px;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+    cursor: pointer;
+}
+.picker-hue[type="range"]::-webkit-slider-runnable-track { height: 12px; background: transparent; border: 0; }
+.picker-hue[type="range"]::-moz-range-track { height: 12px; background: transparent; border: 0; }
+.picker-hue[type="range"]::-moz-range-progress { background: transparent; }
+.picker-hue[type="range"]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; margin-top: -1px; border: 2px solid #fff; border-radius: 50%; background: transparent; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5); }
+.picker-hue[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%; background: transparent; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5); }
+.picker-row { display: flex; align-items: center; gap: 8px; }
+.picker-preview { width: 30px; height: 30px; flex: none; border: 1px solid var(--border); border-radius: 6px; }
+.picker-hex { flex: 1; min-width: 0; height: 30px; padding: 0 8px; font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
 .range-with-value { display: flex; align-items: center; gap: 10px; }
 .range-with-value input[type="range"] { flex: 1; }
 

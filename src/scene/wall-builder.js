@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { wallLength } from '../core/geometry.js';
+import { curtainFor } from './curtain.js';
 import { DEFAULT_DOOR_OPEN, findDoorColor } from '../core/openings.js';
 import { LEAF_THICKNESS, LEVER_HEIGHT, OPENING_OVERLAP, doorFrame, hingeHeights, leafOpening, slidingPanelZ } from '../core/door-parts.js';
 import { VENEER_TILE_METRES, veneerMaps } from '../core/textures.js';
@@ -193,7 +194,12 @@ export function buildWall(wall, openings, height, thickness, material) {
     const fittings = new THREE.Group();
     if (skirting.length) fittings.add(mesh(mergeGeometries(skirting), materials.skirting, { shadows: false }));
 
-    for (const hole of holes) fittings.add(hole.opening.kind === 'door' ? door(hole, thickness) : windowUnit(hole, thickness));
+    for (const hole of holes) {
+        fittings.add(hole.opening.kind === 'door' ? door(hole, thickness) : windowUnit(hole, thickness));
+        if (hole.opening.kind === 'window' && hole.opening.curtain?.enabled) {
+            fittings.add(curtainFor(hole, { thickness, wallHeight: height, wallHalf: length / 2 }));
+        }
+    }
     group.add(fittings);
     group.userData.fittings = fittings;
     return group;
