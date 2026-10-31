@@ -10,7 +10,7 @@ import { FurnitureGizmo } from './furniture-gizmo.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { getFloorPolygon } from '../core/floor-outline.js';
 import { planBounds, wallLength } from '../core/geometry.js';
-import { findPreset, materialCanvas } from '../core/textures.js';
+import { FLOOR_TILE_METRES, findPreset, floorMaps, materialCanvas } from '../core/textures.js';
 import { buildWall } from './wall-builder.js';
 import { Lighting } from './lighting.js';
 import { WalkControls } from './walk-controls.js';
@@ -177,6 +177,8 @@ export class RoomScene {
                 for (const m of [o.material].flat()) {
                     if (m.userData.shared) continue; // cached door/window materials are reused
                     m.map?.dispose();
+                    m.normalMap?.dispose();
+                    m.roughnessMap?.dispose();
                     m.dispose();
                 }
             });
@@ -223,6 +225,48 @@ export class RoomScene {
         return new THREE.MeshStandardMaterial({ map, roughness, color: map ? 0xffffff : 0xeeeeee });
     }
 
+    /** A preset floor is varnished wood: colour, relief and sheen. A person's own image stays plain. */
+    _floorMaterial(finish, scale) {
+        const preset = finish.preset && (findPreset('floor', finish.preset) ?? findPreset('floor', 'oak'));
+        if (!preset) return this._material(finish, 'floor', scale, scale, 0.75);
+        const repeat = scale / FLOOR_TILE_METRES;
+        const maps = this._floorTextures(preset);
+        const clone = texture => {
+            const copy = texture.clone();
+            copy.repeat.set(repeat, repeat);
+            return copy;
+        };
+        return new THREE.MeshPhysicalMaterial({
+            map: clone(maps.color),
+            normalMap: clone(maps.normal),
+            normalScale: new THREE.Vector2(0.5, 0.5),
+            roughnessMap: clone(maps.roughness),
+            roughness: 1,
+            clearcoat: 0.18,
+            clearcoatRoughness: 0.3,
+        });
+    }
+
+    _floorTextures(preset) {
+        const key = `floor-maps:${preset.id}`;
+        if (!this._textures.has(key)) {
+            const maps = floorMaps(preset);
+            const make = (canvas, colorSpace) => {
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                texture.colorSpace = colorSpace;
+                texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+                return texture;
+            };
+            this._textures.set(key, {
+                color: make(maps.color, THREE.SRGBColorSpace),
+                normal: make(maps.normal, THREE.NoColorSpace),
+                roughness: make(maps.roughness, THREE.NoColorSpace),
+            });
+        }
+        return this._textures.get(key);
+    }
+
     _floorMesh(polygon) {
         const scale = this.store.floor.scale;
         const indices = earcut(polygon.flatMap(p => [p.x, p.z]));
@@ -238,8 +282,7 @@ export class RoomScene {
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geometry.computeVertexNormals();
         if (geometry.attributes.normal.getY(0) < 0) flipWinding(geometry);
-        const material = this._material(this.store.floor.finish, 'floor', scale, scale, 0.75);
-        const floor = new THREE.Mesh(geometry, material);
+        const floor = new THREE.Mesh(geometry, this._floorMaterial(this.store.floor.finish, scale));
         floor.receiveShadow = true;
         floor.userData.kind = 'floor';
         return floor;

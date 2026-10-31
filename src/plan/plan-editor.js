@@ -9,7 +9,7 @@
 import { getFloorPolygon } from '../core/floor-outline.js';
 import { constrainAngle, distanceToSegment, planBounds, polygonArea, snapToGrid, wallLength } from '../core/geometry.js';
 import { makeWall } from '../core/store.js';
-import { materialCanvas, findPreset } from '../core/textures.js';
+import { FLOOR_TILE_METRES, materialCanvas, findPreset } from '../core/textures.js';
 import { createOpening, hitOpening, offsetOnWall, pointOnWall, wallFrame } from '../core/openings.js';
 import { createLight, kelvinToRgb, lightPlacement, movePatch } from '../core/lights.js';
 
@@ -461,8 +461,8 @@ export class PlanEditor {
             pattern = ctx.createPattern(source, 'repeat');
             this._patternCache.set(source, pattern);
         }
-        // One texture tile covers 1 m ÷ scale, matching the 3D view.
-        const tilePx = (100 / scale) * this.view.scale;
+        // A preset's tile covers FLOOR_TILE_METRES ÷ scale, an image's 1 m ÷ scale, matching the 3D view.
+        const tilePx = ((finish.preset ? FLOOR_TILE_METRES * 100 : 100) / scale) * this.view.scale;
         const sourceSize = source.width || source.naturalWidth;
         pattern.setTransform(new DOMMatrix().translateSelf(this.view.x, this.view.y).scaleSelf(tilePx / sourceSize));
         return pattern;

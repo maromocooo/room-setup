@@ -3,7 +3,13 @@
 // Preset ids are stored in project files; never rename them. `legacyName`
 // is how projects saved by the original app referred to the same preset.
 
+import { generateWood } from './wood.js';
+
 const SIZE = 512;
+
+/** How much floor one preset texture covers at pattern scale 1. Big, so the repeat doesn't show. */
+export const FLOOR_TILE_METRES = 4;
+const FLOOR_TILE_PIXELS = 2048;
 
 export const FLOOR_PRESETS = [
     { id: 'oak', legacyName: 'オーク', color: [185, 155, 100] },
@@ -51,39 +57,6 @@ function createCanvas(size = SIZE) {
     return canvas;
 }
 
-function drawPlanks(ctx, preset) {
-    const rand = random(preset.id);
-    const [r, g, b] = preset.color;
-    const rows = 5;
-    const rowHeight = SIZE / rows;
-    for (let row = 0; row < rows; row++) {
-        const y = row * rowHeight;
-        // Two boards per row with staggered butt joints, wrapped so it tiles.
-        const joint = rand() * SIZE;
-        const length = SIZE * (0.4 + rand() * 0.2);
-        for (const [start, width] of [[0, SIZE], [joint, length]]) {
-            const shade = (rand() - 0.5) * 22;
-            ctx.fillStyle = rgb(r + shade, g + shade, b + shade);
-            for (const offset of [0, -SIZE]) ctx.fillRect(start + offset, y, width, rowHeight);
-        }
-        // Grain: long, slightly wavy strokes.
-        for (let i = 0; i < 14; i++) {
-            const gy = y + 3 + rand() * (rowHeight - 6);
-            const dark = 10 + rand() * 25;
-            ctx.strokeStyle = rgb(r - dark, g - dark, b - dark, 0.22 + rand() * 0.2);
-            ctx.lineWidth = 0.6 + rand() * 1.2;
-            ctx.beginPath();
-            ctx.moveTo(0, gy);
-            for (let x = 0; x <= SIZE; x += 64) ctx.lineTo(x, gy + Math.sin(x / 80 + i) * (0.5 + rand()));
-            ctx.stroke();
-        }
-        // Joints and seams.
-        ctx.fillStyle = rgb(r - 55, g - 55, b - 55, 0.75);
-        ctx.fillRect(0, y, SIZE, 1.5);
-        for (const x of [joint, (joint + length) % SIZE]) ctx.fillRect(x, y, 1.5, rowHeight);
-    }
-}
-
 function drawWall(ctx, preset) {
     const rand = random(preset.id);
     const [r, g, b] = preset.color;
@@ -124,25 +97,56 @@ function drawWall(ctx, preset) {
     }
 }
 
+function toCanvas(pixels, size) {
+    const canvas = createCanvas(size);
+    canvas.getContext('2d').putImageData(new ImageData(pixels, size, size), 0, 0);
+    return canvas;
+}
+
+const floorCache = new Map();
+
+/** A floor preset's colour, normal and roughness maps as canvases. Cached; treat them as read-only. */
+export function floorMaps(preset) {
+    if (!floorCache.has(preset.id)) {
+        const maps = generateWood(preset.id, preset.color, { size: FLOOR_TILE_PIXELS, metres: FLOOR_TILE_METRES });
+        floorCache.set(preset.id, {
+            color: toCanvas(maps.color, FLOOR_TILE_PIXELS),
+            normal: toCanvas(maps.normal, FLOOR_TILE_PIXELS),
+            roughness: toCanvas(maps.roughness, FLOOR_TILE_PIXELS),
+        });
+    }
+    return floorCache.get(preset.id);
+}
+
 const cache = new Map();
 
-/** Full-size texture canvas for a preset. Cached; treat it as read-only. */
+/** Texture canvas for a preset. Cached; treat it as read-only. */
 export function materialCanvas(kind, preset) {
+    if (kind === 'floor') return floorMaps(preset).color;
     const key = `${kind}:${preset.id}`;
     if (!cache.has(key)) {
         const canvas = createCanvas();
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = rgb(...preset.color);
         ctx.fillRect(0, 0, SIZE, SIZE);
-        (kind === 'floor' ? drawPlanks : drawWall)(ctx, preset);
+        drawWall(ctx, preset);
         cache.set(key, canvas);
     }
     return cache.get(key);
 }
 
-/** Small preview image (data URL) for swatches. */
+/** Small preview image (data URL) for swatches. Floors get their own quick little tile, not the full maps. */
 export function swatchUrl(kind, preset, size = 96) {
     const canvas = createCanvas(size);
-    canvas.getContext('2d').drawImage(materialCanvas(kind, preset), 0, 0, SIZE / 2, SIZE / 2, 0, 0, size, size);
+    if (kind === 'floor') {
+        // Made larger and shrunk: at swatch size the grain would alias into jagged lines.
+        const large = size * 4;
+        const wood = generateWood(preset.id, preset.color, { size: large, metres: 1.2 });
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(toCanvas(wood.color, large), 0, 0, size, size);
+    } else {
+        canvas.getContext('2d').drawImage(materialCanvas(kind, preset), 0, 0, SIZE / 2, SIZE / 2, 0, 0, size, size);
+    }
     return canvas.toDataURL();
 }
