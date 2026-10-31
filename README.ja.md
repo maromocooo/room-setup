@@ -5,7 +5,7 @@
 2Dで間取りを描き、3Dで部屋を歩き回り、写真1枚から作った家具を置ける模様替えアプリです。すべてローカルで動きます。Webアプリは単体で使え、必要に応じて生成APIを起動すると、自分のGPUで **Hunyuan3D 2.1**・**TRELLIS.2**・**TRELLIS**・**Pixal3D**・**SAM 3D Objects** などの画像→3Dモデルを使えます。エンジンはアプリ上で切り替えられ、読み込みと解放はAPIが自動で行います。
 
 <p align="center">
-  <img src="docs/images/desk.png" alt="商品写真から生成した家具で再現したデスク周り" width="760">
+  <img src="docs/images/desk.png" alt="写真から生成したデスク、椅子、フロアランプ、犬用ベッドを置いた部屋" width="760">
 </p>
 
 ## 動作の様子

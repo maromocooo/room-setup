@@ -5,7 +5,7 @@
 2D로 방을 설계하고, 3D로 둘러보고, 사진 한 장으로 만든 가구를 배치하세요. 모든 것이 로컬에서 실행됩니다. 웹 앱은 단독으로 동작하며, 선택 사항인 생성 API가 여러분의 GPU에서 **Hunyuan3D 2.1**, **TRELLIS.2**, **TRELLIS**, **Pixal3D**, **SAM 3D Objects** 같은 이미지-3D 모델을 구동합니다. 앱에서 엔진을 전환할 수 있고, API가 알아서 로드와 언로드를 처리합니다.
 
 <p align="center">
-  <img src="docs/images/desk.png" alt="상품 사진으로 생성한 가구로 재현한 책상 공간" width="760">
+  <img src="docs/images/desk.png" alt="사진으로 생성한 책상, 의자, 플로어 램프, 강아지 침대를 놓은 방" width="760">
 </p>
 
 ## 동작 모습

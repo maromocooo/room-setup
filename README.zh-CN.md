@@ -5,7 +5,7 @@
 在 2D 中规划房间，在 3D 中四处查看，并用一张照片生成家具摆进房间。一切都在本地运行：网页应用可以单独使用，可选的生成 API 会在你自己的 GPU 上驱动 **Hunyuan3D 2.1**、**TRELLIS.2**、**TRELLIS**、**Pixal3D**、**SAM 3D Objects** 等图像转 3D 模型。可以在应用中切换引擎，API 会自动加载和卸载它们。
 
 <p align="center">
-  <img src="docs/images/desk.png" alt="用商品照片生成的家具还原的书桌一角" width="760">
+  <img src="docs/images/desk.png" alt="摆放着用照片生成的书桌、椅子、落地灯和狗窝的房间" width="760">
 </p>
 
 ## 演示

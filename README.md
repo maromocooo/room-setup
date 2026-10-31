@@ -5,7 +5,7 @@
 Plan a room in 2D, walk around it in 3D, and fill it with furniture generated from a single photo. Everything runs locally: the web app works on its own, and an optional generation API drives image-to-3D models such as **Hunyuan3D 2.1**, **TRELLIS.2**, **TRELLIS**, **Pixal3D** and **SAM 3D Objects** on your own GPU. You can switch between engines from the app; the API loads and unloads them for you.
 
 <p align="center">
-  <img src="docs/images/desk.png" alt="A desk corner furnished with models generated from product photos" width="760">
+  <img src="docs/images/desk.png" alt="A room with a desk, chair, floor lamp and dog bed, furnished with models generated from photos" width="760">
 </p>
 
 ## See it in action
