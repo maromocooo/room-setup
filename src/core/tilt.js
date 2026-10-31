@@ -65,3 +65,39 @@ export const TILT_TURNS = {
     left: ['z', 90],      // top tips to the left (−x)
     right: ['z', -90],
 };
+
+/** The size after a turn, if the item turned rigidly: a quarter turn swaps two of its sides. */
+export function turnDimensions(dimensions, turn) {
+    const { width, height, depth } = dimensions;
+    if (turn === 'forward' || turn === 'backward') return { ...dimensions, height: depth, depth: height };
+    if (turn === 'left' || turn === 'right') return { ...dimensions, width: height, height: width };
+    return dimensions;
+}
+
+/**
+ * Scale per axis that fits a model of `size` (x, y, z, any unit) to `dimensions` in cm,
+ * in metres. The longer horizontal side goes with the longer of width and depth, so a
+ * sofa generated sideways is not squashed.
+ */
+export function fitScales(size, dimensions) {
+    const long = Math.max(dimensions.width, dimensions.depth) / 100;
+    const short = Math.min(dimensions.width, dimensions.depth) / 100;
+    const xIsLong = size.x >= size.z;
+    return { x: (xIsLong ? long : short) / size.x, y: dimensions.height / 100 / size.y, z: (xIsLong ? short : long) / size.z };
+}
+
+/** How far a fit bends a model out of its own shape: 1 means not at all. */
+function distortion(size, dimensions) {
+    const { x, y, z } = fitScales(size, dimensions);
+    return Math.max(x, y, z) / Math.min(x, y, z);
+}
+
+/**
+ * Which size a model should have after being turned. `size` is its extent in its new
+ * orientation, before any fitting. Whichever keeps it closer to its own shape wins:
+ * a standing lamp tipped over takes its size with it, while a model generated lying
+ * down, turned upright, was always meant to have the size already entered.
+ */
+export function dimensionsAfterTurn(size, current, turned) {
+    return distortion(size, turned) < distortion(size, current) * 0.98 ? turned : current;
+}

@@ -6,7 +6,7 @@ import { Store } from './core/store.js';
 import { PlanEditor, isTyping } from './plan/plan-editor.js';
 import { RoomScene, footprint } from './scene/room-scene.js';
 import { MeshEditor } from './scene/mesh-editor.js';
-import { cloneFurnitureObject, disposeObject, setTilt } from './scene/furniture.js';
+import { cloneFurnitureObject, disposeObject, turnFurniture } from './scene/furniture.js';
 import { TILT_TURNS, turnTilt } from './core/tilt.js';
 import { createAttachedLight, lightPlacement, movePatch } from './core/lights.js';
 import { downloadBlob, openProject, saveProject } from './project/project-io.js';
@@ -141,7 +141,8 @@ export function startApp() {
         },
     });
 
-    // Fix a model that was generated upside down or on its side.
+    // Turn a piece of furniture: to lay it down, or to fix a model that was generated
+    // upside down or on its side.
     function tilt(item, turn) {
         store.checkpoint();
         const orient = item.object.getObjectByName('rs-orient');
@@ -150,7 +151,8 @@ export function startApp() {
             item.tilt = { x: deg(orient.rotation.x), y: deg(orient.rotation.y), z: deg(orient.rotation.z) };
         }
         item.tilt = turnTilt(item.tilt, ...TILT_TURNS[turn]);
-        setTilt(item.object, item.tilt, item.dimensions);
+        item.dimensions = turnFurniture(item.object, item.tilt, item.dimensions, turn);
+        item.loadedDimensions = { ...item.dimensions };
         delete item.footprint;
         // Generated ('raw') models are rebuilt from their tilt everywhere;
         // others carry it baked into their geometry, so upload them again.
