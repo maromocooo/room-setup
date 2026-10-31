@@ -4,6 +4,18 @@
 
 2Dで間取りを描き、3Dで部屋を歩き回り、写真1枚から作った家具を置ける模様替えアプリです。すべてローカルで動きます。Webアプリは単体で使え、必要に応じて生成APIを起動すると、自分のGPUで **Hunyuan3D 2.1**・**TRELLIS.2**・**TRELLIS**・**Pixal3D**・**SAM 3D Objects** などの画像→3Dモデルを使えます。エンジンはアプリ上で切り替えられ、読み込みと解放はAPIが自動で行います。
 
+## 任意の連携：部屋の写真から家具のある3Dの部屋へ
+
+Room Setup・[itemsmith](https://github.com/maromocooo/itemsmith)・[glbsmith](https://github.com/maromocooo/glbsmith) は、それぞれ単独で使える独立したツールです。必要に応じて次の順につなげられます。
+
+1. **itemsmith**：部屋の写真とヒントから製品候補・参照画像・寸法を調べ、ユーザーが正誤を確認します。
+2. **glbsmith**：写真と幅・奥行き・高さをもとに、Codex / Claude Code が Blender でモデルを作り、GLB を出力します。
+3. **Room Setup**：GLB を読み込み、2D/3D の部屋に配置します。
+
+セットアップ、itemsmith → glbsmith の既存連携、Room Setup への手動読み込みは **[統合ガイド（英語）](docs/end-to-end.md)** を参照してください。製品・寸法・生成モデルの確認は必要で、部屋を完全自動で再現するものではありません。
+
+手元に GLB があれば **家具 → GLB を読み込む** から単独で使えます。従来の画像→3D生成エンジンも引き続き選べます。連携先のアプリはローカルで動作しますが、選択したエージェントは外部サービスを利用します。
+
 <p align="center">
   <img src="docs/images/desk.png" alt="写真から生成したデスク、椅子、フロアランプ、犬用ベッドを置いた部屋" width="760">
 </p>
