@@ -118,6 +118,23 @@ export function floorMaps(preset) {
     return floorCache.get(preset.id);
 }
 
+const veneerCache = new Map();
+
+/** How much door one veneer texture covers. */
+export const VENEER_TILE_METRES = 2.4;
+
+/** Colour, normal and roughness maps for door veneer: long, matched leaves with the grain along u. */
+export function veneerMaps(id, color) {
+    if (!veneerCache.has(id)) {
+        const size = 2048;
+        const maps = generateWood(`veneer-${id}`, color, {
+            size, metres: VENEER_TILE_METRES, boardWidth: 0.3, boardLength: [VENEER_TILE_METRES, VENEER_TILE_METRES], grooves: false, pores: 0.45,
+        });
+        veneerCache.set(id, { color: toCanvas(maps.color, size), normal: toCanvas(maps.normal, size), roughness: toCanvas(maps.roughness, size) });
+    }
+    return veneerCache.get(id);
+}
+
 const cache = new Map();
 
 /** Texture canvas for a preset. Cached; treat it as read-only. */

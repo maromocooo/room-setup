@@ -57,8 +57,8 @@ const smooth = (low, high, v) => {
 };
 
 /** Boards of one row: [{ start, length, ... }] in pixels, summing exactly to the tile width. */
-function layoutRow(rand, size, metres) {
-    const [shortest, longest] = BOARD_LENGTH;
+function layoutRow(rand, size, metres, boardLength, boardWidth) {
+    const [shortest, longest] = boardLength;
     const boards = [];
     let left = metres;
     while (left > 0) {
@@ -73,13 +73,13 @@ function layoutRow(rand, size, metres) {
         const board = {
             start: (offset + (at / metres) * size) % size,
             pixels: (length / metres) * size,
-            tone: (rand() - 0.5) * 0.15,
+            tone: (rand() - 0.5) * (boardLength[0] >= metres ? 0.05 : 0.15), // veneer leaves are matched, floor boards vary
             warmth: (rand() - 0.5) * 0.05,
             seedU: rand() * 900,
             seedV: rand() * 900,
             // Where the tree's centre lies across this board: near it the rings sweep
             // into the arches of flat-sawn wood, far from it they run straight.
-            centre: (rand() - 0.5) * BOARD_WIDTH * (rand() < 0.55 ? 0.8 : 4),
+            centre: (rand() - 0.5) * boardWidth * (rand() < 0.55 ? 0.8 : 4),
             rings: 34 + rand() * 40,
             sweep: 0.6 + rand() * 1.6,
         };
@@ -92,11 +92,11 @@ function layoutRow(rand, size, metres) {
  * Maps for a tile `metres` wide and `size` pixels. Returns RGBA Uint8ClampedArrays:
  * { color, normal, roughness } (roughness is in the green channel, as three.js reads it).
  */
-export function generateWood(id, baseColor, { size = 2048, metres = 4 } = {}) {
+export function generateWood(id, baseColor, { size = 2048, metres = 4, boardWidth = BOARD_WIDTH, boardLength = BOARD_LENGTH, grooves = true, pores = 1 } = {}) {
     const seed = hash32(id);
     const rand = generator(seed);
     const noise = noiseField(seed ^ 0x9e3779b9);
-    const rows = Math.max(1, Math.round(metres / BOARD_WIDTH));
+    const rows = Math.max(1, Math.round(metres / boardWidth));
     const rowPixels = size / rows;
     const metresPerPixel = metres / size;
     const [r, g, b] = baseColor;
@@ -108,7 +108,7 @@ export function generateWood(id, baseColor, { size = 2048, metres = 4 } = {}) {
     const height = new Float32Array(size * size);
 
     for (let row = 0; row < rows; row++) {
-        const boards = layoutRow(rand, size, metres);
+        const boards = layoutRow(rand, size, metres, boardLength, boardWidth);
         const top = Math.round(row * rowPixels);
         const bottom = Math.round((row + 1) * rowPixels);
         const across = (bottom - top) * metresPerPixel;
@@ -134,16 +134,16 @@ export function generateWood(id, baseColor, { size = 2048, metres = 4 } = {}) {
 
                     const fibre = noise(u * 26 + board.seedU, v * 1300 + board.seedV);
                     const mottle = noise(u * 2.4 + board.seedV, v * 13 + board.seedU);
-                    const poreNoise = noise(u * 75 + board.seedV, v * 1500 + board.seedU);
+                    const poreNoise = noise(u * 34 + board.seedV, v * 1100 + board.seedU);
                     const pore = smooth(0.74, 0.86, poreNoise);
 
                     const shade = 0.12 + late * 0.42 + (fibre - 0.5) * 0.3 + (mottle - 0.5) * 0.55 - board.tone * 2.2;
                     const t = Math.max(0, Math.min(1, shade));
-                    const dim = 1 - pore * 0.26;
+                    const dim = 1 - pore * 0.26 * pores;
 
                     // The groove around each board: a soft dark line, not a painted stroke.
                     const edge = Math.min(v, across - v, u, (board.pixels - px) * metresPerPixel);
-                    const groove = smooth(BEVEL, 0, edge);
+                    const groove = grooves ? smooth(BEVEL, 0, edge) : 0;
 
                     const shadow = 1 - groove * 0.72;
                     const i = (line + x) * 4;
