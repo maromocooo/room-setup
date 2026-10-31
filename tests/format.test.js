@@ -75,3 +75,15 @@ test('lights inside furniture keep their attachment', () => {
     });
     assert.deepEqual(parseProject(JSON.parse(JSON.stringify(manifest))).lights[0].attach, { furnitureId: 'lamp1', dx: 3, dy: 130, dz: -4 });
 });
+
+test('board direction survives saving, and older projects stay horizontal', () => {
+    const state = direction => ({
+        walls: [], ceilingHeight: 240, floor: { finish: { preset: 'oak' }, scale: 1, ...(direction ? { direction } : {}) },
+        wall: { finish: { preset: 'standard' }, scale: 1 }, furniture: [],
+    });
+    const saved = direction => JSON.parse(JSON.stringify(buildManifest(state(direction)).manifest));
+    assert.equal(saved('vertical').floor.direction, 'vertical');
+    assert.equal(parseProject(saved('vertical')).floor.direction, 'vertical');
+    assert.equal(saved().floor.direction, undefined);
+    assert.equal(parseProject(saved('horizontal')).floor.direction, undefined);
+});

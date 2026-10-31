@@ -69,6 +69,7 @@ export const messages = {
         'opening.style.window.casement': '縦すべり出し',
 
         'finish.floor': '床材', 'finish.wall': '壁紙', 'finish.scale': '柄の大きさ',
+        'finish.direction': '板の向き', 'finish.direction.horizontal': '横', 'finish.direction.vertical': '縦',
         'finish.scope.all': 'すべての壁', 'finish.scope.selected': '選択中の壁だけ',
         'finish.scope.hint': '間取りで壁をクリックすると、その壁だけ壁紙を変えられます',
         'finish.pasteHint': '「＋」から手持ちの床材・壁紙の写真も使えます',
@@ -209,6 +210,7 @@ export const messages = {
         'opening.style.window.casement': 'Casement',
 
         'finish.floor': 'Flooring', 'finish.wall': 'Wallpaper', 'finish.scale': 'Pattern size',
+        'finish.direction': 'Board direction', 'finish.direction.horizontal': 'Across', 'finish.direction.vertical': 'Up and down',
         'finish.scope.all': 'All walls', 'finish.scope.selected': 'Selected wall only',
         'finish.scope.hint': 'Click a wall in the plan to give just that wall a different finish',
         'finish.pasteHint': 'Use “+” to bring your own flooring or wallpaper photo',

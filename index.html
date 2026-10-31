@@ -223,6 +223,12 @@
                     <div class="swatches" id="floorSwatches" role="radiogroup" data-i18n-aria-label="finish.floor"></div>
                     <label class="field"><span data-i18n="finish.scale"></span>
                         <input type="range" id="floorScale" min="0.25" max="4" step="0.05" value="1"></label>
+                    <div class="field"><span data-i18n="finish.direction"></span>
+                        <div class="segmented small block" id="floorDirection" role="group" data-i18n-aria-label="finish.direction">
+                            <button type="button" data-direction="horizontal" data-i18n="finish.direction.horizontal"></button>
+                            <button type="button" data-direction="vertical" data-i18n="finish.direction.vertical"></button>
+                        </div>
+                    </div>
                 </section>
                 <section class="card">
                     <header class="card-header"><h2 data-i18n="finish.wall"></h2><output class="value-chip" id="wallScaleValue"></output></header>

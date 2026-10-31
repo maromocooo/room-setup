@@ -6,6 +6,7 @@
 //   openings[]   { wall (index into walls), kind, preset, style, offset, width, height, sill, hinge, side }
 //   lights[]     { preset, x, y, drop | height, lumens, kelvin, on, shadows }    plus timeOfDay
 //   floor, wall  { finish, scale }                  finish = { preset } | { image: "<zip path>" }
+//                floor.direction: "vertical" when boards run along the plan's y axis (default: along x)
 //   furniture[]  { id, name, engine, dimensions, position (cm), rotation { y (deg) },
 //                  model: "<zip path>", thumbnail?: "<zip path>" }
 // Version 2 and earlier came from the original Room Designer; parseProject
@@ -53,7 +54,7 @@ export function buildManifest(state) {
         }),
         lights: (state.lights ?? []).map(({ id, ...rest }) => rest),
         timeOfDay: state.timeOfDay ?? 'day',
-        floor: { finish: finishRef(state.floor.finish, 'floor'), scale: state.floor.scale },
+        floor: { finish: finishRef(state.floor.finish, 'floor'), scale: state.floor.scale, ...(state.floor.direction === 'vertical' ? { direction: 'vertical' } : {}) },
         wall: { finish: finishRef(state.wall.finish, 'wall'), scale: state.wall.scale },
         furniture: state.furniture.map(item => ({
             id: item.id,
@@ -92,7 +93,7 @@ export function parseProject(data) {
 
     const modern = data.format === FORMAT;
     const floor = modern
-        ? { finish: data.floor?.finish ?? null, scale: finite(data.floor?.scale, 1) }
+        ? { finish: data.floor?.finish ?? null, scale: finite(data.floor?.scale, 1), ...(data.floor?.direction === 'vertical' ? { direction: 'vertical' } : {}) }
         : { finish: legacyFinish('floor', data.floorTextureSettings), scale: finite(data.floorTextureSettings?.scale, 1) };
     const wall = modern
         ? { finish: data.wall?.finish ?? null, scale: finite(data.wall?.scale, 1) }

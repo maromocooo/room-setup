@@ -275,7 +275,9 @@ export class RoomScene {
         for (const i of indices) {
             const p = polygon[i];
             positions.push(p.x, 0, p.z);
-            uvs.push(p.x, -p.z); // one tile per metre; repeat applies the scale
+            // UVs in metres, so repeat applies the scale. Boards run along u: plan x, or plan y when vertical.
+            if (this.store.floor.direction === 'vertical') uvs.push(p.z, p.x);
+            else uvs.push(p.x, -p.z);
         }
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));

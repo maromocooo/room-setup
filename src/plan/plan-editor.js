@@ -452,7 +452,7 @@ export class PlanEditor {
     }
 
     floorPattern(ctx) {
-        const { finish, scale } = this.store.floor;
+        const { finish, scale, direction } = this.store.floor;
         const source = finish.preset ? materialCanvas('floor', findPreset('floor', finish.preset) ?? findPreset('floor', 'oak'))
             : this._imageFor(finish.image);
         if (!source || !(source.width || source.naturalWidth)) return null;
@@ -464,7 +464,9 @@ export class PlanEditor {
         // A preset's tile covers FLOOR_TILE_METRES ÷ scale, an image's 1 m ÷ scale, matching the 3D view.
         const tilePx = ((finish.preset ? FLOOR_TILE_METRES * 100 : 100) / scale) * this.view.scale;
         const sourceSize = source.width || source.naturalWidth;
-        pattern.setTransform(new DOMMatrix().translateSelf(this.view.x, this.view.y).scaleSelf(tilePx / sourceSize));
+        const transform = new DOMMatrix().translateSelf(this.view.x, this.view.y);
+        if (direction === 'vertical') transform.rotateSelf(90);
+        pattern.setTransform(transform.scaleSelf(tilePx / sourceSize));
         return pattern;
     }
 

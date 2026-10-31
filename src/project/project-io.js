@@ -120,7 +120,7 @@ export async function openProject(file) {
         lights: project.lights.map(light => ({ ...light, id: newLightId() })),
         timeOfDay: project.timeOfDay,
         ceilingHeight: project.ceilingHeight,
-        floor: { finish: (await resolveFinish(project.floor.finish)) ?? { preset: 'oak' }, scale: project.floor.scale },
+        floor: { ...project.floor, finish: (await resolveFinish(project.floor.finish)) ?? { preset: 'oak' }, scale: project.floor.scale },
         wall: { finish: (await resolveFinish(project.wall.finish)) ?? { preset: 'standard' }, scale: project.wall.scale },
         furniture,
         failed,

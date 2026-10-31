@@ -79,6 +79,11 @@ try {
     await page.click('[data-tab="finish"]');
     await page.click('#floorSwatches [data-preset="blackWalnut"]');
     assert.equal(await page.$eval('#floorSwatches [data-preset="blackWalnut"]', el => el.getAttribute('aria-checked')), 'true');
+    // Board direction: changes the 3D floor's mapping, and is remembered.
+    await page.click('#floorDirection [data-direction="vertical"]');
+    assert.equal(await page.$eval('#floorDirection [data-direction="vertical"]', el => el.getAttribute('aria-pressed')), 'true');
+    assert.equal(await page.evaluate(() => window.roomSetup.store.floor.direction), 'vertical');
+    await page.waitForFunction(async () => (await (await fetch('/api/scene')).json()).floor.direction === 'vertical', { timeout: 15000 });
     await step(page, '03-finishes');
 
     // Generate with the mock engine.
@@ -151,6 +156,7 @@ try {
     await page.reload({ waitUntil: 'load' });
     await page.waitForFunction(() => document.querySelectorAll('#wallList li').length === 6
         && document.querySelectorAll('#furnitureList li').length === 1, { timeout: 15000 });
+    assert.equal(await page.evaluate(() => window.roomSetup.store.floor.direction), 'vertical', 'direction survives a reload');
     const remote = await (await fetch(`${baseUrl}/api/scene`)).json();
     remote.walls = remote.walls.slice(0, 4).map((w, i, all) => ({ ...w, end: all[(i + 1) % 4].start }));
     await fetch(`${baseUrl}/api/scene`, {

@@ -80,6 +80,10 @@ export function setupFinishPanel({ store, toast }) {
         button.addEventListener('click', () => { scope = button.dataset.scope; render(); });
     }
 
+    for (const button of document.querySelectorAll('#floorDirection [data-direction]')) {
+        button.addEventListener('click', () => store.setFloor({ direction: button.dataset.direction }));
+    }
+
     function markSelected(container, finish) {
         for (const swatch of container.querySelectorAll('.swatch')) {
             const selected = finish?.preset ? swatch.dataset.preset === finish.preset : Boolean(finish?.image) && swatch.classList.contains('custom');
@@ -96,6 +100,9 @@ export function setupFinishPanel({ store, toast }) {
         markSelected($('floorSwatches'), store.floor.finish);
         markSelected($('wallSwatches'), currentFinish('wall'));
         $('floorScale').value = store.floor.scale;
+        for (const button of document.querySelectorAll('#floorDirection [data-direction]')) {
+            button.setAttribute('aria-pressed', String(button.dataset.direction === (store.floor.direction ?? 'horizontal')));
+        }
         $('wallScale').value = store.wall.scale;
         $('floorScaleValue').textContent = `×${store.floor.scale.toFixed(2)}`;
         $('wallScaleValue').textContent = `×${store.wall.scale.toFixed(2)}`;
