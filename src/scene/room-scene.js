@@ -10,7 +10,7 @@ import { FurnitureGizmo } from './furniture-gizmo.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { getFloorPolygon } from '../core/floor-outline.js';
 import { planBounds, wallLength } from '../core/geometry.js';
-import { FLOOR_TILE_METRES, findPreset, floorMaps, materialCanvas } from '../core/textures.js';
+import { FLOOR_TILE_METRES, WALL_TILE_METRES, findPreset, floorMaps, wallMaps } from '../core/textures.js';
 import { buildWall } from './wall-builder.js';
 import { Lighting } from './lighting.js';
 import { WalkControls } from './walk-controls.js';
@@ -199,17 +199,12 @@ export class RoomScene {
         if (this._needsFraming && this.visible) this.setCamera('orbit');
     }
 
-    _texture(finish, kind) {
-        const key = finish.preset ? `${kind}:${finish.preset}` : finish.image;
+    /** The texture for a person's own image; presets have their own maps. */
+    _texture(finish) {
+        const key = finish.image;
         if (!key) return null;
         if (!this._textures.has(key)) {
-            let texture;
-            if (finish.preset) {
-                const preset = findPreset(kind, finish.preset) ?? findPreset(kind, kind === 'floor' ? 'oak' : 'standard');
-                texture = new THREE.CanvasTexture(materialCanvas(kind, preset));
-            } else {
-                texture = new THREE.TextureLoader().load(finish.image, () => this.rebuildRoom());
-            }
+            const texture = new THREE.TextureLoader().load(finish.image, () => this.rebuildRoom());
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             texture.colorSpace = THREE.SRGBColorSpace;
             texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
@@ -219,7 +214,7 @@ export class RoomScene {
     }
 
     _material(finish, kind, repeatX, repeatY, roughness) {
-        const base = this._texture(finish, kind);
+        const base = this._texture(finish);
         const map = base?.clone(); // shares the image; only repeat differs
         if (map) map.repeat.set(repeatX, repeatY);
         return new THREE.MeshStandardMaterial({ map, roughness, color: map ? 0xffffff : 0xeeeeee });
@@ -229,13 +224,8 @@ export class RoomScene {
     _floorMaterial(finish, scale) {
         const preset = finish.preset && (findPreset('floor', finish.preset) ?? findPreset('floor', 'oak'));
         if (!preset) return this._material(finish, 'floor', scale, scale, 0.75);
-        const repeat = scale / FLOOR_TILE_METRES;
-        const maps = this._floorTextures(preset);
-        const clone = texture => {
-            const copy = texture.clone();
-            copy.repeat.set(repeat, repeat);
-            return copy;
-        };
+        const maps = this._presetTextures('floor', preset, floorMaps);
+        const clone = repeated(scale / FLOOR_TILE_METRES);
         return new THREE.MeshPhysicalMaterial({
             map: clone(maps.color),
             normalMap: clone(maps.normal),
@@ -247,10 +237,24 @@ export class RoomScene {
         });
     }
 
-    _floorTextures(preset) {
-        const key = `floor-maps:${preset.id}`;
+    /** A preset wall has relief and a matt sheen. A person's own image stays plain. */
+    _wallMaterial(finish, scale) {
+        const preset = finish.preset && (findPreset('wall', finish.preset) ?? findPreset('wall', 'standard'));
+        if (!preset) return this._material(finish, 'wall', scale, scale, 0.9);
+        const maps = this._presetTextures('wall', preset, wallMaps);
+        const clone = repeated(scale / WALL_TILE_METRES);
+        return new THREE.MeshStandardMaterial({
+            map: clone(maps.color),
+            normalMap: clone(maps.normal),
+            roughnessMap: clone(maps.roughness),
+            roughness: 1,
+        });
+    }
+
+    _presetTextures(kind, preset, generate) {
+        const key = `${kind}-maps:${preset.id}`;
         if (!this._textures.has(key)) {
-            const maps = floorMaps(preset);
+            const maps = generate(preset);
             const make = (canvas, colorSpace) => {
                 const texture = new THREE.CanvasTexture(canvas);
                 texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -310,7 +314,7 @@ export class RoomScene {
         const finish = wall.finish ?? this.store.wall.finish;
         const scale = this.store.wall.scale;
         // Wall UVs are in metres, so the texture repeats `scale` times per metre.
-        const material = this._material(finish, 'wall', scale, scale, 0.9);
+        const material = this._wallMaterial(finish, scale);
         const openings = this.store.openings.filter(o => o.wallId === wall.id);
         const group = buildWall(wall, openings, height, WALL_THICKNESS, material);
         const mid = new THREE.Vector2((wall.start.x + wall.end.x) / 200, (wall.start.y + wall.end.y) / 200);
@@ -655,6 +659,15 @@ function insidePolygon(polygon, x, z) {
         if ((a.z > z) !== (b.z > z) && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
     }
     return inside;
+}
+
+/** A function that copies a texture with the given repeat; copies share the image. */
+function repeated(repeat) {
+    return texture => {
+        const copy = texture.clone();
+        copy.repeat.set(repeat, repeat);
+        return copy;
+    };
 }
 
 function flipWinding(geometry) {

@@ -378,7 +378,7 @@ async def set_finishes(
     Presets — floor: oak, hardMaple, ashClear, sycamore, elm, acacia, blackCherry, blackWalnut;
     wall: standard (white vinyl), woven, plaster, greige, sage, charcoal.
     *_image: a URL or local path of a tileable texture photo instead of a preset.
-    *_scale: pattern size multiplier (1 = boards 20 cm wide on floors, one image per metre otherwise; larger = denser).
+    *_scale: pattern size multiplier (for presets, 1 = natural size: floor boards 20 cm wide; for images, one image per metre; larger = denser).
     floor_direction: which way the boards run on the plan: "horizontal" (along x) or "vertical" (along y).
     wall_id: apply the wallpaper to one wall only (an accent wall).
     """
