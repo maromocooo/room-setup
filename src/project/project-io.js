@@ -42,6 +42,7 @@ export async function saveProject(store) {
             dimensions: item.dimensions,
             position: item.object.position,
             rotationY: item.object.rotation.y,
+            rotationX: item.object.rotation.x,
             hasThumbnail: Boolean(item.thumbnail),
         })),
     });
@@ -103,6 +104,7 @@ export async function openProject(file) {
             const object = entry.layout === 'raw' ? makeFurnitureObject(scene, entry.dimensions) : adoptSavedObject(scene);
             object.position.set(entry.position.x, entry.position.y, entry.position.z);
             object.rotation.y = entry.rotationY;
+            object.rotation.x = entry.rotationX ?? 0;
             furniture.push({ ...entry, object, thumbnail: await imageAt(entry.thumbnail) });
         } catch (error) {
             console.warn(`Could not load furniture ${entry.id}`, error);

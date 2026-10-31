@@ -50,6 +50,7 @@ export function setupSceneSync({ store, scene, plan, nameFor }) {
                     z: round(item.object.position.z * 100),
                 },
                 facing: round((((item.object.rotation.y / DEG) % 360) + 360) % 360),
+                pitch: round(item.object.rotation.x / DEG),
                 tilt: item.tilt ?? null,
                 thumbnail_url: item.thumbnail && !item.thumbnail.startsWith('data:') ? item.thumbnail : null,
             })),
@@ -66,6 +67,7 @@ export function setupSceneSync({ store, scene, plan, nameFor }) {
     function place(object, entry) {
         object.position.set((entry.position?.x ?? 0) / 100, (entry.position?.y ?? 0) / 100, (entry.position?.z ?? 0) / 100);
         object.rotation.y = (entry.facing ?? 0) * DEG;
+        object.rotation.x = (entry.pitch ?? 0) * DEG;
         object.userData.furnitureId = entry.id;
     }
 
@@ -131,6 +133,7 @@ export function setupSceneSync({ store, scene, plan, nameFor }) {
             const resized = !sameDimensions(item.dimensions, entry.dimensions);
             item.dimensions = { ...entry.dimensions };
             place(item.object, entry);
+            delete item.footprint;
             if (entry.model_url && (entry.model_url !== item.modelUrl
                 || (resized && item.modelLayout === 'raw' && !sameDimensions(item.loadedDimensions, entry.dimensions)))) {
                 loadModel(item, entry);

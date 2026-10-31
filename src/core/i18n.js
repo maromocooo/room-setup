@@ -122,7 +122,7 @@ export const messages = {
         'job.error': '失敗: {message}', 'job.dismiss': '閉じる', 'job.lost': 'APIが再起動したため、このジョブは失われました',
 
         'inspector.title': '選択中の家具', 'inspector.deselect': '選択を解除', 'inspector.name': '名前',
-        'inspector.elevation': '床からの高さ', 'inspector.rotation': '向き',
+        'inspector.elevation': '床からの高さ', 'inspector.rotation': '向き', 'inspector.pitch': '縦の回転',
         'inspector.edit': '形を調整', 'inspector.duplicate': '複製', 'inspector.delete': '削除',
         'inspector.size': '{w} × {d} × {h} cm',
         'inspector.fix': '向きを直す', 'inspector.fixHint': '上下逆や横倒しで生成されたときに使います。寸法は保ったまま床に置き直します',
@@ -271,7 +271,7 @@ export const messages = {
         'job.error': 'Failed: {message}', 'job.dismiss': 'Dismiss', 'job.lost': 'The API restarted and this job was lost',
 
         'inspector.title': 'Selected furniture', 'inspector.deselect': 'Deselect', 'inspector.name': 'Name',
-        'inspector.elevation': 'Elevation', 'inspector.rotation': 'Rotation',
+        'inspector.elevation': 'Elevation', 'inspector.rotation': 'Rotation', 'inspector.pitch': 'Vertical turn',
         'inspector.edit': 'Adjust shape', 'inspector.duplicate': 'Duplicate', 'inspector.delete': 'Delete',
         'inspector.size': '{w} × {d} × {h} cm',
         'inspector.fix': 'Fix orientation', 'inspector.fixHint': 'For models generated upside down or on their side. Keeps the size and puts it back on the floor',

@@ -95,6 +95,7 @@ export class RoomScene {
             camera: this.camera, domElement: renderer.domElement, scene, orbit: this.controls,
             onChange: object => this.onTransform?.(object.userData.furnitureId),
             onDragStart: () => this.onFurnitureDragStart?.(),
+            onPitch: (object, radians) => this.onFurniturePitch?.(object.userData.furnitureId, radians),
         });
         // Arrows for moving the selected light (including lights in furniture).
         this.lightGizmo = new FurnitureGizmo({
@@ -566,6 +567,17 @@ export class RoomScene {
                 z: (o.position.z - fp.offsetX * sin + fp.offsetZ * cos) * 100,
             };
         });
+    }
+
+    /**
+     * Turn an item vertically, about its own left-right axis. Its lowest point stays
+     * at the same height, so it keeps standing on the floor instead of sinking in.
+     */
+    setPitch(item, radians) {
+        const lowest = item.object.position.y + footprint(item).bottom;
+        item.object.rotation.x = radians;
+        delete item.footprint;
+        item.object.position.y = lowest - footprint(item).bottom;
     }
 
     /** Move an item so its footprint centre lands on plan point (x, z) in cm. */

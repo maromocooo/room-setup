@@ -100,3 +100,17 @@ test('a curtain survives a save and load, and bad ones are repaired', () => {
     assert.equal(file({ ...rest, wall: 0, curtain: { enabled: true, material: 'x', color: 'y', open: 900 } }).openings[0].curtain.material, 'linen');
     assert.equal(file({ ...rest, kind: 'door', wall: 0, curtain }).openings[0].curtain, undefined, 'doors have no curtains');
 });
+
+test('a vertical turn survives a save and load', () => {
+    const item = { id: 'a', name: 'a', dimensions: { width: 1, height: 1, depth: 1 }, position: { x: 0, y: 0, z: 0 }, rotationY: Math.PI / 2, rotationX: Math.PI / 4, hasThumbnail: false };
+    const { manifest } = buildManifest({ walls: [], ceilingHeight: 240, floor: { finish: { preset: 'oak' }, scale: 1 }, wall: { finish: { preset: 'standard' }, scale: 1 }, furniture: [item] });
+    assert.equal(manifest.furniture[0].rotation.x, 45);
+    const parsed = parseProject(JSON.parse(JSON.stringify(manifest)));
+    assert.ok(Math.abs(parsed.furniture[0].rotationX - Math.PI / 4) < 1e-9);
+    assert.ok(Math.abs(parsed.furniture[0].rotationY - Math.PI / 2) < 1e-9);
+});
+
+test('a file from before vertical turns stands upright', () => {
+    const parsed = parseProject({ format: 'room-setup', walls: [], furniture: [{ id: 'a', position: { x: 0, y: 0, z: 0 }, rotation: { y: 90 } }] });
+    assert.equal(parsed.furniture[0].rotationX, 0);
+});

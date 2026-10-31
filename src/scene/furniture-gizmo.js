@@ -4,26 +4,30 @@
 // so the X/Y/Z arrows sit in the middle of the item instead of half under
 // the floor; the item follows the proxy and never goes below the floor.
 // Rotate: a full ring on the floor around the item with a knob showing which
-// way its front faces. Drag the ring to turn (5° steps, Shift: 15°).
+// way its front faces, and a standing ring through the item for turning it
+// vertically. Drag a ring to turn (5° steps, Shift: 15°).
 
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
 const RING_COLOR = 0x4f5bd5;
 const RING_HOVER = 0x7d87f0;
+const PITCH_COLOR = 0xe2725b;
+const PITCH_HOVER = 0xf09a87;
 
 export class FurnitureGizmo {
     /**
      * onDragStart/onDragEnd: called around a move. clampFloor: keep the
      * object's origin at or above y = 0 (furniture); false for lights.
      */
-    constructor({ camera, domElement, scene, orbit, onChange, onDragStart, onDragEnd, clampFloor = true }) {
+    constructor({ camera, domElement, scene, orbit, onChange, onDragStart, onDragEnd, onPitch, clampFloor = true }) {
         this.camera = camera;
         this.dom = domElement;
         this.orbit = orbit;
         this.onChange = onChange;
         this.onDragStart = onDragStart;
         this.onDragEnd = onDragEnd;
+        this.onPitch = onPitch;
         this.clampFloor = clampFloor;
         this.object = null;
         this.mode = 'translate';
@@ -69,6 +73,16 @@ export class FurnitureGizmo {
         this.ring.add(this.ringMesh, this.ringPick, this.knobPivot);
         scene.add(this.ring);
 
+        // A ring standing across the item, with its axis along the item's left-right.
+        this.pitchRing = new THREE.Group();
+        this.pitchRing.visible = false;
+        this.pitchMaterial = new THREE.MeshBasicMaterial({ color: PITCH_COLOR, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide });
+        this.pitchMesh = new THREE.Mesh(new THREE.BufferGeometry(), this.pitchMaterial);
+        this.pitchMesh.renderOrder = 10;
+        this.pitchPick = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+        this.pitchRing.add(this.pitchMesh, this.pitchPick);
+        scene.add(this.pitchRing);
+
         this._raycaster = new THREE.Raycaster();
         this._floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         domElement.addEventListener('pointerdown', e => this._onPointerDown(e), { capture: true });
@@ -88,6 +102,7 @@ export class FurnitureGizmo {
         this.object = null;
         this.transform.detach();
         this.ring.visible = false;
+        this.pitchRing.visible = false;
     }
 
     setMode(mode) {
@@ -95,12 +110,14 @@ export class FurnitureGizmo {
         if (this.object && mode === 'translate') this.transform.attach(this.proxy);
         else this.transform.detach();
         this.ring.visible = Boolean(this.object) && mode === 'rotate';
+        this.pitchRing.visible = this.ring.visible && Boolean(this.onPitch);
     }
 
     /** Hide or show everything (for screenshots). */
     setVisible(visible) {
         this.transform.getHelper().visible = visible;
         this.ring.visible = visible && Boolean(this.object) && this.mode === 'rotate';
+        this.pitchRing.visible = this.ring.visible && Boolean(this.onPitch);
     }
 
     /** Keep the handles on the item; call every frame. */
@@ -124,6 +141,38 @@ export class FurnitureGizmo {
             this.knob.position.set(0, 0, radius + 0.1);
         }
         this.knobPivot.rotation.y = this.object.rotation.y;
+
+        // Held still during a drag: the angle is measured around where it started.
+        if (this._pitchStart) return;
+        this.pitchRing.position.copy(centre);
+        this.pitchRing.rotation.y = this.object.rotation.y;
+        const pitchRadius = Math.max(Math.max(size.x, size.y, size.z) / 2 + 0.1, 0.25);
+        if (!this._pitchRadius || Math.abs(pitchRadius - this._pitchRadius) > 0.02) {
+            this._pitchRadius = pitchRadius;
+            this.pitchMesh.geometry.dispose();
+            this.pitchMesh.geometry = new THREE.RingGeometry(pitchRadius, pitchRadius + 0.03, 96).rotateY(Math.PI / 2);
+            this.pitchPick.geometry.dispose();
+            this.pitchPick.geometry = new THREE.RingGeometry(pitchRadius - 0.1, pitchRadius + 0.13, 48).rotateY(Math.PI / 2);
+        }
+    }
+
+    /** Angle of the pointer around the standing ring; the item's up towards its front is positive. */
+    _pitchAngle(e) {
+        const yaw = this.object.rotation.y;
+        const axis = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis, this.pitchRing.position);
+        this._raycaster.setFromCamera(this._ndc(e), this.camera);
+        const point = this._raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+        if (!point) return null;
+        point.sub(this.pitchRing.position);
+        const front = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+        return Math.atan2(point.dot(front), point.y);
+    }
+
+    _hitsPitchRing(e) {
+        if (!this.pitchRing.visible) return false;
+        this._raycaster.setFromCamera(this._ndc(e), this.camera);
+        return this._raycaster.intersectObject(this.pitchPick, false).length > 0;
     }
 
     // ---- ring dragging ----
@@ -147,6 +196,18 @@ export class FurnitureGizmo {
     }
 
     _onPointerDown(e) {
+        if (e.button === 0 && this._hitsPitchRing(e)) {
+            const angle = this._pitchAngle(e);
+            if (angle === null) return;
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            this.dom.setPointerCapture(e.pointerId);
+            this.dragging = true;
+            this.orbit.enabled = false;
+            this._pitchStart = { angle, rotation: this.object.rotation.x };
+            this.onDragStart?.(this.object);
+            return;
+        }
         if (e.button !== 0 || !this._hitsRing(e)) return;
         const angle = this._floorAngle(e);
         if (angle === null) return;
@@ -161,6 +222,14 @@ export class FurnitureGizmo {
     }
 
     _onPointerMove(e) {
+        if (this._pitchStart) {
+            const angle = this._pitchAngle(e);
+            if (angle === null) return;
+            const step = THREE.MathUtils.degToRad(e.shiftKey ? 15 : 5);
+            const raw = THREE.MathUtils.euclideanModulo(this._pitchStart.rotation + angle - this._pitchStart.angle + Math.PI, Math.PI * 2) - Math.PI;
+            this.onPitch(this.object, Math.round(raw / step) * step);
+            return;
+        }
         if (this._rotateStart) {
             const angle = this._floorAngle(e);
             if (angle === null) return;
@@ -172,14 +241,17 @@ export class FurnitureGizmo {
             return;
         }
         if (!this.ring.visible) return;
-        const hover = this._hitsRing(e);
+        const overPitch = this._hitsPitchRing(e);
+        const hover = !overPitch && this._hitsRing(e);
         this.ringMaterial.color.setHex(hover ? RING_HOVER : RING_COLOR);
-        this.dom.style.cursor = hover ? 'grab' : '';
+        this.pitchMaterial.color.setHex(overPitch ? PITCH_HOVER : PITCH_COLOR);
+        this.dom.style.cursor = hover || overPitch ? 'grab' : '';
     }
 
     _onPointerUp(e) {
-        if (!this._rotateStart) return;
+        if (!this._rotateStart && !this._pitchStart) return;
         this._rotateStart = null;
+        this._pitchStart = null;
         if (this.dom.hasPointerCapture(e.pointerId)) this.dom.releasePointerCapture(e.pointerId);
         this.orbit.enabled = true;
         // Let the click handler that runs after this ignore the release.

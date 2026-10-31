@@ -128,6 +128,11 @@ export function startApp() {
     const generation = setupGenerationPanel({ store, toast, placeFurniture });
     const furniturePanel = setupFurniturePanel({
         store, onEdit: item => meshEditor.open(item), onDuplicate: duplicate, onDelete: remove, onTilt: tilt,
+        onPitch: (item, degrees) => {
+            store.checkpoint('pitch');
+            scene.setPitch(item, degrees * Math.PI / 180);
+            store.emit('furniture');
+        },
         onAddLight: item => {
             const light = createAttachedLight(item.id, footprint(item).height * 100);
             store.addLight(light);
@@ -173,6 +178,12 @@ export function startApp() {
     };
     scene.onTransform = () => { store.emit('furniture'); };
     scene.onFurnitureDragStart = () => store.checkpoint();
+    scene.onFurniturePitch = (id, radians) => {
+        const item = store.getFurniture(id);
+        if (!item) return;
+        scene.setPitch(item, radians);
+        store.emit('furniture');
+    };
 
     store.on('walls room finish openings', () => scene.rebuildRoom());
     store.on('lights room furniture', () => scene.syncLights());

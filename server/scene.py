@@ -24,6 +24,7 @@ Shape (all lengths in centimetres; plan x → right, plan y → down/3D z):
         "dimensions": {"width", "depth", "height"},
         "position": {"x", "y", "z"},  # plan x, elevation, plan y
         "facing": 0,                  # degrees; 0 = front faces +y, 90 = faces +x
+        "pitch": 0,                   # degrees; a vertical turn about the item's left-right axis
         "thumbnail_url"
       }]
     }

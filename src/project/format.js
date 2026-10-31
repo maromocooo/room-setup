@@ -7,7 +7,7 @@
 //   lights[]     { preset, x, y, drop | height, lumens, kelvin, on, shadows }    plus timeOfDay
 //   floor, wall  { finish, scale }                  finish = { preset } | { image: "<zip path>" }
 //                floor.direction: "vertical" when boards run along the plan's y axis (default: along x)
-//   furniture[]  { id, name, engine, dimensions, position (cm), rotation { y (deg) },
+//   furniture[]  { id, name, engine, dimensions, position (cm), rotation { y, x (deg) },
 //                  model: "<zip path>", thumbnail?: "<zip path>" }
 // Version 2 and earlier came from the original Room Designer; parseProject
 // reads them too.
@@ -63,7 +63,7 @@ export function buildManifest(state) {
             engine: item.engine ?? null,
             dimensions: item.dimensions,
             position: { x: round(item.position.x * 100, 1), y: round(item.position.y * 100, 1), z: round(item.position.z * 100, 1) },
-            rotation: { y: round(item.rotationY * 180 / Math.PI, 1) },
+            rotation: { y: round(item.rotationY * 180 / Math.PI, 1), ...(item.rotationX ? { x: round(item.rotationX * 180 / Math.PI, 1) } : {}) },
             model: `models/${item.id}.glb`,
             ...(item.hasThumbnail ? { thumbnail: `thumbnails/${item.id}.png` } : {}),
         })),
@@ -115,6 +115,7 @@ export function parseProject(data) {
             z: finite(item.position?.z, 0) / 100,
         },
         rotationY: finite(item.rotation?.y, 0) * Math.PI / 180,
+        rotationX: finite(item.rotation?.x, 0) * Math.PI / 180,
         model: modern ? item.model : `generated/model_${item.id}.glb`,
         thumbnail: modern ? item.thumbnail ?? null : `thumbnails/${item.id}.png`,
         // v2 GLBs were exported at the origin with scale baked into the

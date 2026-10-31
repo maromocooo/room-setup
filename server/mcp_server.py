@@ -285,6 +285,7 @@ def describe(document: dict) -> dict:
             "engine": f.get("engine"), "size_cm": f.get("dimensions"),
             "x_cm": f["position"]["x"], "y_cm": f["position"]["z"], "elevation_cm": f["position"]["y"],
             "facing_deg": f.get("facing", 0),
+            "pitch_deg": f.get("pitch", 0),
         } for f in document["furniture"]],
         "presets": {"floor": FLOOR_PRESETS, "wall": WALL_PRESETS, "openings": list(OPENING_PRESETS)},
     }
@@ -870,6 +871,7 @@ async def update_furniture(
     x_cm: float | None = None,
     y_cm: float | None = None,
     facing_deg: float | None = None,
+    pitch_deg: float | None = None,
     elevation_cm: float | None = None,
     name: str | None = None,
     width_cm: float | None = None,
@@ -894,6 +896,8 @@ async def update_furniture(
             item["position"]["y"] = float(elevation_cm)
         if facing_deg is not None:
             item["facing"] = float(facing_deg) % 360
+        if pitch_deg is not None:
+            item["pitch"] = max(-180.0, min(180.0, float(pitch_deg)))
         if name:
             item["name"] = name
         for key, value in (("width", width_cm), ("depth", depth_cm), ("height", height_cm)):

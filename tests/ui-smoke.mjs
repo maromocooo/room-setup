@@ -253,6 +253,64 @@ try {
     await page.click('#undoRoom');
     assert.equal(await page.evaluate(() => JSON.stringify(window.roomSetup.store.floor)), floorBefore);
 
+    // A vertical turn: stays on the floor, and can be undone.
+    const pose = () => page.evaluate(() => {
+        const { store, footprint } = window.roomSetup;
+        const item = store.furniture[0];
+        const fp = footprint(item);
+        const o = item.object;
+        return { lowest: o.position.y + fp.bottom, height: fp.height, pitch: o.rotation.x * 180 / Math.PI, yaw: o.rotation.y };
+    });
+    await page.evaluate(() => { const { store } = window.roomSetup; store.selectFurniture(store.furniture[0].id); });
+    await page.click('[data-tab="furniture"]');
+    await page.waitForFunction(() => !document.getElementById('inspector').hidden);
+    const upright = await pose();
+    await page.$eval('#itemPitch', el => { el.value = '30'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    const leaning = await pose();
+    assert.ok(Math.abs(leaning.pitch - 30) < 0.01);
+    assert.ok(Math.abs(leaning.lowest - upright.lowest) < 1e-3, `still on the floor: ${leaning.lowest}`);
+    assert.notEqual(leaning.height, upright.height);
+    assert.ok(Math.abs(leaning.yaw - upright.yaw) < 1e-6, 'its direction does not change');
+    await page.click('#undoRoom');
+    const undone = await pose();
+    assert.ok(Math.abs(undone.pitch) < 0.01 && Math.abs(undone.height - upright.height) < 1e-3, 'undo stands it up again');
+    // The standing ring in 3D, dragged with the mouse.
+    await page.click('[data-gizmo="rotate"]');
+    await new Promise(r => setTimeout(r, 300));
+    const onRing = await page.evaluate(() => {
+        const { scene } = window.roomSetup;
+        const gizmo = scene.gizmo;
+        gizmo.update();
+        const point = gizmo.pitchRing.position.clone();
+        point.y += gizmo._pitchRadius + 0.015;
+        point.project(scene.camera);
+        const box = scene.renderer.domElement.getBoundingClientRect();
+        const toScreen = v => ({ x: box.left + (v.x + 1) / 2 * box.width, y: box.top + (1 - v.y) / 2 * box.height });
+        const from = toScreen(point);
+        const yaw = scene.gizmo.object.rotation.y;
+        const later = gizmo.pitchRing.position.clone();
+        const r = gizmo._pitchRadius + 0.015;
+        later.x += Math.sin(yaw) * r * 0.7;
+        later.z += Math.cos(yaw) * r * 0.7;
+        later.y += r * 0.7;
+        return { from, to: toScreen(later.project(scene.camera)), visible: gizmo.pitchRing.visible };
+    });
+    assert.ok(onRing.visible, 'the ring shows in rotate mode');
+    await page.mouse.move(onRing.from.x, onRing.from.y);
+    await page.mouse.down();
+    await page.mouse.move(onRing.to.x, onRing.to.y, { steps: 6 });
+    await page.mouse.up();
+    await step(page, '066-vertical-ring');
+    const dragged = await pose();
+    assert.ok(Math.abs(dragged.pitch - 45) < 11, `turned by the ring: ${dragged.pitch}`);
+    assert.ok(Math.abs(dragged.lowest - upright.lowest) < 1e-3, 'on the floor after the ring too');
+    assert.equal(await page.$eval('#itemPitchValue', el => Math.abs(Number(el.value) - Math.round(window.roomSetup.store.furniture[0].object.rotation.x * 180 / Math.PI)) <= 1), true);
+    await page.click('[data-gizmo="translate"]');
+    // It reaches the gateway, so a reload or the assistant sees it too.
+    await page.waitForFunction(async () => Math.abs((await (await fetch('/api/scene')).json()).furniture[0].pitch) > 1, { timeout: 15000 });
+    await page.$eval('#itemPitch', el => { el.value = '0'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    assert.ok(Math.abs((await pose()).pitch) < 0.01, 'the slider stands it upright again');
+
     // Walk mode: W moves the eye-level camera, Esc ends the walk.
     await page.click('#walkToggle');
     assert.equal(await page.$eval('#walkBar', el => el.hidden), false);

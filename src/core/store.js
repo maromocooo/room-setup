@@ -151,6 +151,7 @@ export class Store extends EventTarget {
             item.name = entry.name;
             item.object.position.fromArray(entry.position);
             item.object.quaternion.fromArray(entry.quaternion);
+            delete item.footprint; // a vertical turn changes what it stands on
             if (JSON.stringify(entry.tilt ?? null) !== JSON.stringify(item.tilt ?? null)) {
                 item.tilt = entry.tilt;
                 this.onTiltRestored?.(item);

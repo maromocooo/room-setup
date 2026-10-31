@@ -3,13 +3,14 @@
 import { t } from '../core/i18n.js';
 import { footprint } from '../scene/room-scene.js';
 
-export function setupFurniturePanel({ store, onEdit, onDuplicate, onDelete, onTilt, onAddLight }) {
+export function setupFurniturePanel({ store, onEdit, onDuplicate, onDelete, onTilt, onAddLight, onPitch }) {
     const $ = id => document.getElementById(id);
     const list = $('furnitureList');
     const inspector = $('inspector');
     const fields = {
         name: $('itemName'), x: $('itemX'), z: $('itemZ'), y: $('itemY'),
         rotation: $('itemRotation'), rotationValue: $('itemRotationValue'),
+        pitch: $('itemPitch'), pitchValue: $('itemPitchValue'),
     };
 
     list.addEventListener('click', event => {
@@ -48,6 +49,13 @@ export function setupFurniturePanel({ store, onEdit, onDuplicate, onDelete, onTi
     };
     fields.rotation.addEventListener('input', () => setRotation(Number(fields.rotation.value)));
     fields.rotationValue.addEventListener('change', () => setRotation(Number(fields.rotationValue.value)));
+
+    const setPitch = degrees => {
+        const item = selected();
+        if (item && Number.isFinite(degrees)) onPitch(item, degrees);
+    };
+    fields.pitch.addEventListener('input', () => setPitch(Number(fields.pitch.value)));
+    fields.pitchValue.addEventListener('change', () => setPitch(Number(fields.pitchValue.value)));
 
     $('inspectorClose').addEventListener('click', () => store.selectFurniture(null));
     $('itemEdit').addEventListener('click', () => selected() && onEdit(selected()));
@@ -94,6 +102,9 @@ export function setupFurniturePanel({ store, onEdit, onDuplicate, onDelete, onTi
         const degrees = Math.round(((o.rotation.y / THREE_DEG) % 360 + 360) % 360) % 360;
         set(fields.rotation, degrees);
         set(fields.rotationValue, degrees);
+        const pitch = Math.round(o.rotation.x / THREE_DEG);
+        set(fields.pitch, pitch);
+        set(fields.pitchValue, pitch);
         $('itemSize').textContent = item.status === 'failed' ? `${t('furniture.failed')}: ${item.error ?? ''}`
             : item.status === 'generating' ? t('furniture.generating') : t('inspector.size', sizeOf(footprint(item)));
         $('itemEdit').disabled = Boolean(item.object.userData.placeholder);
