@@ -6,7 +6,7 @@ import { Store } from './core/store.js';
 import { PlanEditor, isTyping } from './plan/plan-editor.js';
 import { RoomScene, footprint } from './scene/room-scene.js';
 import { MeshEditor } from './scene/mesh-editor.js';
-import { cloneFurnitureObject, disposeObject, turnFurniture } from './scene/furniture.js';
+import { cloneFurnitureObject, disposeObject, turnFurniture, setTilt } from './scene/furniture.js';
 import { TILT_TURNS, turnTilt } from './core/tilt.js';
 import { createAttachedLight, lightPlacement, movePatch } from './core/lights.js';
 import { downloadBlob, openProject, saveProject } from './project/project-io.js';
@@ -79,6 +79,7 @@ export function startApp() {
     store.onRemoved = item => disposeObject(item.object);
     store.onTiltRestored = item => {
         setTilt(item.object, item.tilt ?? { x: 0, y: 0, z: 0 }, item.dimensions);
+        item.loadedDimensions = { ...item.dimensions };
         delete item.footprint;
         if (item.modelLayout !== 'raw') sync.invalidateModel(item);
     };

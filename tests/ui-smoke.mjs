@@ -311,6 +311,32 @@ try {
     await page.$eval('#itemPitch', el => { el.value = '0'; el.dispatchEvent(new Event('input', { bubbles: true })); });
     assert.ok(Math.abs((await pose()).pitch) < 0.01, 'the slider stands it upright again');
 
+    // Tipping a model over and undoing it gives back its shape and size.
+    const shape = () => page.evaluate(() => {
+        const { store, footprint } = window.roomSetup;
+        const item = store.furniture[0];
+        delete item.footprint;
+        const fp = footprint(item);
+        return { dims: JSON.stringify(item.dimensions), box: [fp.width, fp.depth, fp.height].map(v => Math.round(v * 1000)) };
+    });
+    await page.evaluate(() => { const { store } = window.roomSetup; store.selectFurniture(store.furniture[0].id); });
+    await page.waitForSelector('[data-tilt="forward"]');
+    const standing = await shape();
+    // Undone straight away, while the turn is still on its way to the gateway and back: the room must settle
+    // on the undone state, not on the echo.
+    await page.$eval('[data-tilt="forward"]', el => el.click());
+    await page.click('#undoRoom');
+    await new Promise(r => setTimeout(r, 2500));
+    assert.deepEqual(await shape(), standing, 'the same size and shape as before');
+    const onGateway = await page.evaluate(async () => (await (await fetch('/api/scene')).json()).furniture[0].tilt);
+    assert.ok(!onGateway || (!onGateway.x && !onGateway.y && !onGateway.z), `the gateway agrees: ${JSON.stringify(onGateway)}`);
+    // And with time for the echo to come back first, as when a person changes their mind.
+    await page.$eval('[data-tilt="forward"]', el => el.click());
+    await new Promise(r => setTimeout(r, 1500));
+    await page.click('#undoRoom');
+    await new Promise(r => setTimeout(r, 1500));
+    assert.deepEqual(await shape(), standing, 'also after the turn has been saved');
+
     // Walk mode: W moves the eye-level camera, Esc ends the walk.
     await page.click('#walkToggle');
     assert.equal(await page.$eval('#walkBar', el => el.hidden), false);

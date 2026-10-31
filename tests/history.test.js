@@ -162,3 +162,20 @@ test('tilt is restored through its hook', () => {
     store.redo();
     assert.deepEqual(restored, [undefined, { x: 180, y: 0, z: 0 }]);
 });
+
+test('turning a model is undone with its size, which the turn may have swapped', () => {
+    const store = new Store();
+    const seen = [];
+    store.onTiltRestored = item => seen.push({ tilt: item.tilt, height: item.dimensions.height });
+    const lamp = { ...furniture('lamp'), dimensions: { width: 30, depth: 30, height: 155 } };
+    store.addFurniture(lamp);
+    store.checkpoint();
+    lamp.tilt = { x: 90, y: 0, z: 0 };
+    lamp.dimensions = { width: 30, depth: 155, height: 30 };
+    store.undo();
+    assert.deepEqual(lamp.dimensions, { width: 30, depth: 30, height: 155 });
+    assert.deepEqual(seen, [{ tilt: undefined, height: 155 }], 'refitted to the size it has now');
+    store.redo();
+    assert.deepEqual(lamp.dimensions, { width: 30, depth: 155, height: 30 });
+    assert.deepEqual(lamp.tilt, { x: 90, y: 0, z: 0 });
+});

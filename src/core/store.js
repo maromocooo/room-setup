@@ -83,6 +83,7 @@ export class Store extends EventTarget {
                 position: item.object.position.toArray(),
                 quaternion: item.object.quaternion.toArray(),
                 tilt: item.tilt ? { ...item.tilt } : item.tilt,
+                dimensions: item.dimensions ? { ...item.dimensions } : item.dimensions,
             })),
         };
     }
@@ -152,7 +153,10 @@ export class Store extends EventTarget {
             item.object.position.fromArray(entry.position);
             item.object.quaternion.fromArray(entry.quaternion);
             delete item.footprint; // a vertical turn changes what it stands on
-            if (JSON.stringify(entry.tilt ?? null) !== JSON.stringify(item.tilt ?? null)) {
+            // Turning a model can swap its width, depth and height, so they return together.
+            const sized = JSON.stringify(entry.dimensions ?? null) !== JSON.stringify(item.dimensions ?? null);
+            if (sized) item.dimensions = entry.dimensions;
+            if (sized || JSON.stringify(entry.tilt ?? null) !== JSON.stringify(item.tilt ?? null)) {
                 item.tilt = entry.tilt;
                 this.onTiltRestored?.(item);
             }
