@@ -4,6 +4,18 @@
 
 Plan a room in 2D, walk around it in 3D, and fill it with furniture generated from a single photo. Everything runs locally: the web app works on its own, and an optional generation API drives image-to-3D models such as **Hunyuan3D 2.1**, **TRELLIS.2**, **TRELLIS**, **Pixal3D** and **SAM 3D Objects** on your own GPU. You can switch between engines from the app; the API loads and unloads them for you.
 
+## Optional workflow: from a room photo to a furnished room
+
+Room Setup, [itemsmith](https://github.com/maromocooo/itemsmith) and [glbsmith](https://github.com/maromocooo/glbsmith) are three independent tools. Use any one on its own, or connect them:
+
+1. **itemsmith** helps identify products in a room photo from your hints, research reference images and dimensions, and review the matches with you.
+2. **glbsmith** uses product photos and width, depth and height to let Codex or Claude Code model the item in Blender and export a GLB.
+3. **Room Setup** imports the GLB so you can position it in your own 2D/3D room.
+
+Follow the **[end-to-end guide](docs/end-to-end.md)** for setup, the existing itemsmith → glbsmith handoff, and the manual GLB import into Room Setup. Product matches, dimensions and generated models still need your review; this is not a fully automatic room reconstruction.
+
+Already have a GLB? Use **Furniture → Import GLB** directly. Room Setup's existing photo-to-3D engines remain a separate option. The companion apps run locally, but their chosen agents use external services.
+
 <p align="center">
   <img src="docs/images/desk.png" alt="A room with a desk, chair, floor lamp and dog bed, furnished with models generated from photos" width="760">
 </p>
