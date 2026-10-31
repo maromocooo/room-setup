@@ -51,7 +51,8 @@ OPENING_PRESETS = {
     "window-casement": ("window", "casement", 60, 90, 100),
     "window-high": ("window", "fixed", 120, 30, 180),
 }
-DOOR_COLORS = ["white", "maple", "oak", "walnut", "grey", "black"]
+# The woods are the floor presets, so a door can match the floor. "maple" and "walnut" are older names.
+DOOR_COLORS = ["white", "grey", "black", *FLOOR_PRESETS, "maple", "walnut"]
 # Mirrors LIGHT_PRESETS in src/core/lights.js: (mount, drop or height in cm, lumens, kelvin).
 LIGHT_PRESETS = {
     "ceiling": ("ceiling", 8, 3800, 5000),
@@ -449,7 +450,7 @@ async def add_opening(
     window-sliding (引き違い), window-patio (floor-level sliding, 掃き出し), window-fixed (FIX),
     window-tall (large sliding window 10 cm above the floor, 200 cm high), window-casement
     (縦すべり出し), window-high (high slit). Sizes default to the preset's.
-    color (doors): white, maple, oak, walnut, grey or black.
+    color (doors): white, grey, black, or any floor wood preset, such as oak or blackWalnut.
     open_percent (doors): how far open the door is drawn in 3D, 0 (closed) to 100 (hinged: 90°).
     x_cm, y_cm: the opening's centre; it snaps onto the nearest wall (or wall_id).
     sill_cm: height of the bottom edge above the floor (windows; doors are 0).

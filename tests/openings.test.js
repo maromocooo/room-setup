@@ -86,3 +86,18 @@ test('door open amount is clamped and saved', () => {
     });
     assert.equal(parseProject(JSON.parse(JSON.stringify(manifest))).openings[0].open, 80);
 });
+
+test('doors can use every floor wood, and older colour names still work', async () => {
+    const { DOOR_COLORS, findDoorColor } = await import('../src/core/openings.js');
+    const { FLOOR_PRESETS } = await import('../src/core/textures.js');
+    for (const preset of FLOOR_PRESETS) {
+        const door = DOOR_COLORS.find(c => c.id === preset.id);
+        assert.ok(door?.grain, preset.id);
+        assert.deepEqual(door.color, preset.color, 'the same colour as the floor');
+    }
+    assert.equal(findDoorColor('walnut').id, 'blackWalnut');
+    assert.equal(findDoorColor('maple').id, 'hardMaple');
+    assert.equal(findDoorColor('oak').id, 'oak');
+    assert.equal(findDoorColor('white').grain, undefined);
+    assert.equal(findDoorColor('nonsense').id, 'white');
+});

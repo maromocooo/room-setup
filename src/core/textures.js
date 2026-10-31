@@ -121,7 +121,7 @@ export function floorMaps(preset) {
 const veneerCache = new Map();
 
 /** How much door one veneer texture covers. */
-export const VENEER_TILE_METRES = 2.4;
+export const VENEER_TILE_METRES = 3;
 
 /** Colour, normal and roughness maps for door veneer: long, matched leaves with the grain along u. */
 export function veneerMaps(id, color) {
@@ -152,8 +152,12 @@ export function materialCanvas(kind, preset) {
     return cache.get(key);
 }
 
+const swatchCache = new Map();
+
 /** Small preview image (data URL) for swatches. Floors get their own quick little tile, not the full maps. */
 export function swatchUrl(kind, preset, size = 96) {
+    const key = `${kind}:${preset.id}:${size}`;
+    if (swatchCache.has(key)) return swatchCache.get(key);
     const canvas = createCanvas(size);
     if (kind === 'floor') {
         // Made larger and shrunk: at swatch size the grain would alias into jagged lines.
@@ -165,5 +169,6 @@ export function swatchUrl(kind, preset, size = 96) {
     } else {
         canvas.getContext('2d').drawImage(materialCanvas(kind, preset), 0, 0, SIZE / 2, SIZE / 2, 0, 0, size, size);
     }
-    return canvas.toDataURL();
+    swatchCache.set(key, canvas.toDataURL());
+    return swatchCache.get(key);
 }

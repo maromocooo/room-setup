@@ -67,7 +67,8 @@ function layoutRow(rand, size, metres, boardLength, boardWidth) {
         boards.push(length);
         left -= length;
     }
-    const offset = rand() * size;
+    // Boards as long as the tile start at its edge, so one piece of wood never crosses a seam.
+    const offset = shortest >= metres ? 0 : rand() * size;
     let at = 0;
     return boards.map(length => {
         const board = {

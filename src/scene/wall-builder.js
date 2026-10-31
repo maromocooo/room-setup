@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { wallLength } from '../core/geometry.js';
-import { DEFAULT_DOOR_COLOR, DEFAULT_DOOR_OPEN, DOOR_COLORS } from '../core/openings.js';
+import { DEFAULT_DOOR_OPEN, findDoorColor } from '../core/openings.js';
 import { LEAF_THICKNESS, LEVER_HEIGHT, OPENING_OVERLAP, doorFrame, hingeHeights, leafOpening, slidingPanelZ } from '../core/door-parts.js';
 import { VENEER_TILE_METRES, veneerMaps } from '../core/textures.js';
 
@@ -30,7 +30,7 @@ const doorMaterials = new Map();
 
 /** Door colours: wood veneer with real grain and sheen, or a smooth painted finish. */
 function doorMaterial(id) {
-    const finish = DOOR_COLORS.find(c => c.id === id) ?? DOOR_COLORS.find(c => c.id === DEFAULT_DOOR_COLOR);
+    const finish = findDoorColor(id);
     if (!doorMaterials.has(finish.id)) {
         const [r, g, b] = finish.color;
         let material;
@@ -75,6 +75,13 @@ function joinery(x0, x1, y0, y1, z0, z1, radius = 0.0015) {
     const uv = geometry.attributes.uv;
     const v = new THREE.Vector3();
     const n = new THREE.Vector3();
+    // Each piece gets its own stretch of the veneer: it starts at its own end, so the grain
+    // never crosses the texture's edge, and a position-based offset keeps pieces from matching.
+    const low = [x0, y0, z0];
+    const pick = Math.abs(Math.sin(x0 * 127.1 + y0 * 311.7 + z0 * 74.7)) * 43758.5;
+    const shift = pick - Math.floor(pick);
+    const startAlong = shift * Math.max(0, VENEER_TILE_METRES - size[along] - 0.02) * 0.2 + 0.01;
+    const startAcross = shift * VENEER_TILE_METRES * 0.7;
     for (let i = 0; i < position.count; i++) {
         v.fromBufferAttribute(position, i);
         n.fromBufferAttribute(normal, i);
@@ -82,7 +89,7 @@ function joinery(x0, x1, y0, y1, z0, z1, radius = 0.0015) {
         const facing = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
         const flat = facing.indexOf(Math.max(...facing));
         const across = [0, 1, 2].find(axis => axis !== along && axis !== flat) ?? (along + 1) % 3;
-        uv.setXY(i, v.getComponent(along), v.getComponent(across));
+        uv.setXY(i, v.getComponent(along) - low[along] + startAlong, v.getComponent(across) - low[across] + startAcross);
     }
     return geometry;
 }

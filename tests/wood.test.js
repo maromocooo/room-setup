@@ -84,3 +84,20 @@ test('a small tile for swatches is quick', () => {
     generateWood('oak', [185, 155, 100], { size: 384, metres: 1.2 });
     assert.ok(performance.now() - started < 300);
 });
+
+test('veneer has no seam along its length, so a door never shows a cut in the grain', () => {
+    const size = 1024;
+    const metres = 3;
+    const veneer = generateWood('veneer-oak', [185, 155, 100], { size, metres, boardWidth: 0.3, boardLength: [metres, metres], grooves: false, pores: 0.45 });
+    const red = (x, y) => veneer.color[(y * size + x) * 4];
+    // Column-to-column jumps stay the same size everywhere inside the tile.
+    const steps = [];
+    for (let x = 1; x < size - 1; x += 1) {
+        let total = 0;
+        for (let y = 0; y < size; y += 4) total += Math.abs(red(x, y) - red(x + 1, y));
+        steps.push(total);
+    }
+    const sorted = [...steps].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    assert.ok(Math.max(...steps) < median * 2.2, `largest ${Math.max(...steps)}, typical ${median}`);
+});

@@ -11,6 +11,7 @@
 // Preset ids are stored in project files; never rename them.
 
 import { distanceToSegment, wallLength } from './geometry.js';
+import { FLOOR_PRESETS } from './textures.js';
 
 export const OPENING_PRESETS = [
     { id: 'door-hinged', kind: 'door', style: 'hinged', width: 80, height: 200, sill: 0 },
@@ -25,15 +26,24 @@ export const OPENING_PRESETS = [
     { id: 'window-high', kind: 'window', style: 'fixed', width: 120, height: 30, sill: 180 },
 ];
 
-// Door leaf and casing finishes. `grain` draws a vertical wood grain.
+// Door finishes: painted, or any of the woods the floor can be, since doors and
+// floors are so often chosen to match. `grain` means wood veneer.
 export const DOOR_COLORS = [
     { id: 'white', color: [242, 240, 236] },
-    { id: 'maple', color: [222, 197, 160], grain: true },
-    { id: 'oak', color: [196, 160, 115], grain: true },
-    { id: 'walnut', color: [104, 72, 52], grain: true },
     { id: 'grey', color: [150, 150, 147] },
     { id: 'black', color: [50, 50, 52] },
+    ...FLOOR_PRESETS.map(({ id, color }) => ({ id, color, grain: true })),
 ];
+
+// Ids from before doors shared the floor's woods. They stay valid in saved projects.
+const OLD_DOOR_COLORS = { maple: 'hardMaple', walnut: 'blackWalnut' };
+
+/** The finish for a stored colour id, old or new. */
+export function findDoorColor(id) {
+    const current = OLD_DOOR_COLORS[id] ?? id;
+    return DOOR_COLORS.find(c => c.id === current) ?? DOOR_COLORS.find(c => c.id === DEFAULT_DOOR_COLOR);
+}
+
 export const DEFAULT_DOOR_COLOR = 'white';
 export const DEFAULT_DOOR_OPEN = 25;
 

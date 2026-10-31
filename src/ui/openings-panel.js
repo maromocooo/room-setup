@@ -1,7 +1,8 @@
 // "Doors & windows" card on the Room tab: preset picker and the inspector
 // for the selected opening.
 
-import { DEFAULT_DOOR_COLOR, DEFAULT_DOOR_OPEN, DOOR_COLORS, OPENING_PRESETS, STYLES } from '../core/openings.js';
+import { DEFAULT_DOOR_COLOR, DEFAULT_DOOR_OPEN, DOOR_COLORS, OPENING_PRESETS, STYLES, findDoorColor } from '../core/openings.js';
+import { swatchUrl } from '../core/textures.js';
 import { t } from '../core/i18n.js';
 
 // Small plan-symbol previews for the preset buttons (64×40 viewBox).
@@ -44,10 +45,7 @@ export function setupOpeningsPanel({ store, plan, onArm }) {
         chip.dataset.color = finish.id;
         chip.setAttribute('role', 'radio');
         const [r, g, b] = finish.color;
-        const shade = c => Math.max(0, c - 28);
-        chip.style.background = finish.grain
-            ? `repeating-linear-gradient(90deg, rgb(${r} ${g} ${b}) 0 5px, rgb(${shade(r)} ${shade(g)} ${shade(b)}) 5px 6px, rgb(${r} ${g} ${b}) 6px 9px)`
-            : `rgb(${r} ${g} ${b})`;
+        chip.style.background = finish.grain ? `center / cover url(${swatchUrl('floor', finish)})` : `rgb(${r} ${g} ${b})`;
         chip.addEventListener('click', () => update({ color: finish.id }));
         chips.appendChild(chip);
     }
@@ -114,7 +112,7 @@ export function setupOpeningsPanel({ store, plan, onArm }) {
             const label = t(`opening.color.${chip.dataset.color}`);
             chip.title = label;
             chip.setAttribute('aria-label', label);
-            chip.setAttribute('aria-checked', String(chip.dataset.color === (opening.color ?? DEFAULT_DOOR_COLOR)));
+            chip.setAttribute('aria-checked', String(chip.dataset.color === findDoorColor(opening.color ?? DEFAULT_DOOR_COLOR).id));
         }
         $('openingSillField').hidden = isDoor;
         $('openingDoorControls').hidden = !isDoor || opening.style === 'opening';
