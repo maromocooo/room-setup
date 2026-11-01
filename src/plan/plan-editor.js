@@ -11,7 +11,7 @@ import { constrainAngle, distanceToSegment, planBounds, polygonArea, snapToGrid,
 import { makeWall } from '../core/store.js';
 import { FLOOR_TILE_METRES, materialCanvas, findPreset } from '../core/textures.js';
 import { createOpening, hitOpening, offsetOnWall, pointOnWall, wallFrame } from '../core/openings.js';
-import { createLight, kelvinToRgb, lightPlacement, movePatch } from '../core/lights.js';
+import { createLight, isTape, kelvinToRgb, lightPlacement, movePatch, tapeBetween, tapeEnds } from '../core/lights.js';
 
 const HIT_PX = 9;
 const WALL_THICKNESS_CM = 10;
@@ -199,6 +199,13 @@ export class PlanEditor {
             if (opening) this.store.removeOpening(opening.id);
             else if (wall) this.store.setWalls(this.store.walls.filter(w => w !== wall));
         } else {
+            const end = this.hitTapeEnd(world);
+            if (end) {
+                this.drag = { type: 'tapeEnd', id: end.light.id, index: end.index, ends: tapeEnds(end.light), moved: false };
+                this.updateCursor();
+                this.requestRender();
+                return;
+            }
             const light = this.hitLight(world);
             if (light) {
                 this.store.selectLight(light.id);
@@ -251,12 +258,28 @@ export class PlanEditor {
         return lightPlacement(light, this.store.ceilingHeight, id => this.hooks.furniturePose?.(id));
     }
 
+    /** An end handle of the selected tape light, which sets its length and direction. */
+    hitTapeEnd(world) {
+        const light = this.store.getLight(this.store.selectedLightId);
+        if (this.tool !== 'select' || !light || !isTape(light)) return null;
+        const reach = 9 / this.view.scale;
+        const index = tapeEnds(light).findIndex(end => Math.hypot(end.x - world.x, end.y - world.y) <= reach);
+        return index < 0 ? null : { light, index };
+    }
+
     hitLight(world) {
         const tolerance = (HIT_PX + 4) / this.view.scale;
         for (let i = this.store.lights.length - 1; i >= 0; i--) {
             const light = this.store.lights[i];
             const place = this.lightAt(light);
-            if (place && Math.hypot(place.x - world.x, place.y - world.y) <= tolerance) return light;
+            if (!place) continue;
+            if (isTape(light)) {
+                const [a, b] = tapeEnds(light);
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const along = Math.max(0, Math.min(1, ((world.x - a.x) * dx + (world.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+                if (Math.hypot(a.x + dx * along - world.x, a.y + dy * along - world.y) <= tolerance) return light;
+            } else if (Math.hypot(place.x - world.x, place.y - world.y) <= tolerance) return light;
         }
         return null;
     }
@@ -284,11 +307,12 @@ export class PlanEditor {
         const drag = this.drag;
 
         if (!drag) {
+            const tapeEnd = this.hitTapeEnd(world);
             const light = this.tool === 'select' || this.tool === 'erase' ? this.hitLight(world) : null;
             const opening = !light && (this.tool === 'select' || this.tool === 'erase') ? this.hitOpeningAt(world) : null;
             this.hover = this.tool === 'wall'
                 ? { corner: this.hitCorner(world) }
-                : { corner: this.tool === 'select' && !light ? this.hitCorner(world) : null, opening, light,
+                : { tapeEnd, corner: this.tool === 'select' && !light ? this.hitCorner(world) : null, opening, light,
                     wall: opening || light ? null : this.hitWall(world),
                     furniture: this.tool === 'select' && !opening ? this.hitFurniture(world) : null };
             this.updateCursor();
@@ -334,6 +358,14 @@ export class PlanEditor {
                 height: drag.height,
             };
             this.store.updateLight(drag.id, movePatch(light, target, this.store.ceilingHeight, id => this.hooks.furniturePose?.(id)), { record: false });
+        } else if (drag.type === 'tapeEnd') {
+            const moved = { x: snapToGrid(world.x, this.gridSize), y: snapToGrid(world.y, this.gridSize) };
+            const patch = drag.index === 0 ? tapeBetween(moved, drag.ends[1]) : tapeBetween(drag.ends[0], moved);
+            if (patch.length) {
+                if (!drag.moved) this.store.checkpoint();
+                drag.moved = true;
+                this.store.updateLight(drag.id, patch, { record: false });
+            }
         } else if (drag.type === 'opening') {
             // Slide along the wall, or hop onto another wall under the cursor.
             const opening = this.store.getOpening(drag.id);
@@ -387,6 +419,7 @@ export class PlanEditor {
         else if (this.tool === 'opening') cursor = this.hover?.wall ? 'copy' : 'not-allowed';
         else if (this.tool === 'light') cursor = 'copy';
         else if (this.tool === 'erase') cursor = this.hover?.wall || this.hover?.opening || this.hover?.light ? 'pointer' : 'default';
+        else if (drag?.type === 'tapeEnd' || this.hover?.tapeEnd) cursor = 'crosshair';
         else if (drag) cursor = 'grabbing';
         else if (this.hover?.corner || this.hover?.wall || this.hover?.furniture || this.hover?.opening || this.hover?.light) cursor = 'grab';
         this.canvas.style.cursor = cursor;
@@ -743,6 +776,11 @@ export class PlanEditor {
             const selected = light.id === this.store.selectedLightId || this.hover?.light === light;
             ctx.save();
             if (ghost) ctx.globalAlpha = 0.55;
+            if (isTape(light)) {
+                this.drawTape(ctx, c, light, `rgb(${r}, ${g}, ${b})`, selected, `rgb(${Math.round(r * 0.8)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.4)})`);
+                ctx.restore();
+                return;
+            }
             if (light.on) {
                 ctx.beginPath();
                 for (let i = 0; i < 8; i++) {
@@ -766,6 +804,45 @@ export class PlanEditor {
         for (const light of this.store.lights) icon(light);
         if (this.tool === 'light' && this.lightPreset && this.cursor && !this.drag) {
             icon({ ...createLight(this.lightPreset.id, { x: snapToGrid(this.cursor.x, this.gridSize), y: snapToGrid(this.cursor.y, this.gridSize) }), id: null }, true);
+        }
+    }
+
+    /** A tape light: a bar, with ticks on the side it shines to, and handles on its ends when selected. */
+    drawTape(ctx, c, light, colour, selected, rayColour) {
+        const [a, b] = tapeEnds(light).map(point => this.toScreen(point));
+        const outline = selected ? (this.tool === 'erase' ? c.danger : c.accent) : c.wall;
+        if (light.on && (light.emit ?? 'side') === 'side') {
+            const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+            const along = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+            const out = { x: -along.y, y: along.x }; // its front on the plan
+            const ticks = Math.max(1, Math.floor(length / 24));
+            ctx.beginPath();
+            for (let i = 0; i <= ticks; i++) {
+                const at = { x: a.x + (b.x - a.x) * ((i + 0.5) / (ticks + 1)), y: a.y + (b.y - a.y) * ((i + 0.5) / (ticks + 1)) };
+                ctx.moveTo(at.x + out.x * 6, at.y + out.y * 6);
+                ctx.lineTo(at.x + out.x * 11, at.y + out.y * 11);
+            }
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = rayColour;
+            ctx.stroke();
+        }
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.lineWidth = selected ? 8 : 7;
+        ctx.strokeStyle = outline;
+        ctx.stroke();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = light.on ? colour : c.label;
+        ctx.stroke();
+        if (light.id === this.store.selectedLightId && this.tool === 'select') {
+            for (const end of [a, b]) {
+                ctx.beginPath();
+                ctx.arc(end.x, end.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = c.accent;
+                ctx.fill();
+            }
         }
     }
 

@@ -1,7 +1,7 @@
 // "Lighting" tab: time of day, light presets, the selected light's settings
 // and the list of placed lights.
 
-import { FIXTURE_PRESETS, KELVIN_MARKS, findLightPreset, kelvinToRgb, lightHeight } from '../core/lights.js';
+import { FIXTURE_PRESETS, KELVIN_MARKS, TAPE_MAX_CM, TAPE_MIN_CM, clampTapeLength, findLightPreset, isTape, kelvinToRgb, lightHeight, normalizeDegrees } from '../core/lights.js';
 import { t } from '../core/i18n.js';
 import { icon } from './icons.js';
 
@@ -13,6 +13,7 @@ const PREVIEWS = {
     spot: '<path d="M8 4h48M32 4v6"/><rect x="27" y="10" width="10" height="9" rx="2"/><path d="M28 21l-8 15M36 21l8 15" stroke-opacity=".5"/>',
     floor: '<path d="M24 8h16l4 10H20z"/><path d="M32 18v17M24 36h16"/>',
     table: '<path d="M25 12h14l3 9H22z"/><path d="M32 21v10M26 32h12M14 36h36"/>',
+    tape: '<rect x="6" y="17" width="52" height="6" rx="2"/><path d="M14 20h.01M24 20h.01M34 20h.01M44 20h.01M54 20h.01" stroke-width="2.5" stroke-linecap="round"/><path d="M14 28v5M24 28v5M34 28v5M44 28v5M54 28v5" stroke-opacity=".5"/>',
 };
 
 export function setupLightsPanel({ store, plan, onArm }) {
@@ -68,6 +69,18 @@ export function setupLightsPanel({ store, plan, onArm }) {
         if (light.attach) return update(attachPatch(light, 'dy', value));
         update(findLightPreset(light.preset).mount === 'ceiling' ? { drop: value } : { height: value });
     });
+    $('lightLength').min = TAPE_MIN_CM;
+    $('lightLength').max = TAPE_MAX_CM;
+    $('lightLength').addEventListener('change', () => {
+        const value = Number($('lightLength').value);
+        if (value > 0) update({ length: clampTapeLength(value) });
+        render();
+    });
+    $('lightRotation').addEventListener('change', () => {
+        update({ rotation: normalizeDegrees(Number($('lightRotation').value) || 0) });
+        render();
+    });
+    $('lightEmit').addEventListener('change', () => update({ emit: $('lightEmit').value }));
     $('lightDelete').addEventListener('click', () => { const l = selected(); if (l) store.removeLight(l.id); });
     $('lightClose').addEventListener('click', () => store.selectLight(null));
 
@@ -88,11 +101,13 @@ export function setupLightsPanel({ store, plan, onArm }) {
     };
     const swatch = kelvin => `rgb(${kelvinToRgb(kelvin).map(v => Math.round(v * 255)).join(' ')})`;
 
+    const unit = ({ kind, preset }) => (kind === 'strip' || preset === 'tape' ? 'lm/m' : 'lm');
+
     function render() {
         for (const button of presets.children) {
             const preset = findLightPreset(button.dataset.lightPreset);
             button.querySelector('span').textContent = t(`light.preset.${preset.id}`);
-            button.querySelector('small').textContent = `${preset.lumens} lm`;
+            button.querySelector('small').textContent = `${preset.lumens} ${unit(preset)}`;
             button.setAttribute('aria-pressed', String(plan.tool === 'light' && plan.lightPreset === preset));
         }
         for (const button of document.querySelectorAll('#timeOfDay [data-time]')) {
@@ -111,7 +126,9 @@ export function setupLightsPanel({ store, plan, onArm }) {
             row.querySelector('.light-dot').style.background = light.on ? swatch(light.kelvin) : 'transparent';
             const host = light.attach && store.getFurniture(light.attach.furnitureId);
             row.querySelector('.list-title').textContent = host ? t('light.inItem', { name: host.name }) : `${t(`light.preset.${light.preset}`)} ${i + 1}`;
-            row.querySelector('.list-meta').textContent = `${light.lumens} lm · ${light.kelvin}K`;
+            row.querySelector('.list-meta').textContent = isTape(light)
+                ? `${light.length / 100} m · ${light.lumens} lm/m · ${light.kelvin}K`
+                : `${light.lumens} lm · ${light.kelvin}K`;
             row.querySelector('[data-action="toggle"]').title = t('light.on');
             return row;
         }));
@@ -133,7 +150,16 @@ export function setupLightsPanel({ store, plan, onArm }) {
         $('lightShadows').checked = light.shadows;
         set('lightLumens', light.lumens);
         set('lightKelvin', light.kelvin);
-        $('lightLumensValue').textContent = `${light.lumens} lm`;
+        $('lightLumensValue').textContent = `${light.lumens} ${unit(light)}`;
+        const tape = isTape(light);
+        $('lightTapeFields').hidden = !tape;
+        $('lightShadowsRow').hidden = tape;
+        if (tape) {
+            set('lightLength', light.length);
+            set('lightRotation', light.rotation ?? 0);
+            $('lightEmit').value = light.emit ?? 'side';
+            $('lightTapeHint').textContent = t('light.tapeHint', { total: Math.round((light.lumens * light.length) / 100) });
+        }
         $('lightKelvinValue').textContent = `${light.kelvin}K ${kelvinName(light.kelvin)}`;
         $('lightKelvinValue').style.boxShadow = `inset 3px 0 0 ${swatch(light.kelvin)}`;
         const ceilingMounted = preset.mount === 'ceiling';

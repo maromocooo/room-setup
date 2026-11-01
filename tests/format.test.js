@@ -114,3 +114,11 @@ test('a file from before vertical turns stands upright', () => {
     const parsed = parseProject({ format: 'room-setup', walls: [], furniture: [{ id: 'a', position: { x: 0, y: 0, z: 0 }, rotation: { y: 90 } }] });
     assert.equal(parsed.furniture[0].rotationX, 0);
 });
+
+test('a tape light keeps its length, direction and way of shining', () => {
+    const tape = { id: 'l3', preset: 'tape', x: 100, y: 50, height: 220, lumens: 500, kelvin: 3000, on: true, shadows: false, length: 240, rotation: 90, emit: 'up' };
+    const { manifest } = buildManifest({ walls: [], floor: {}, wall: {}, ceilingHeight: 240, furniture: [], lights: [tape] });
+    const { id, ...saved } = tape;
+    assert.deepEqual(parseProject(JSON.parse(JSON.stringify(manifest))).lights[0], saved);
+});
+

@@ -95,3 +95,11 @@ def test_tilt_port_matches_the_app():
     assert abs(abs(flip["x"]) - 180) < 0.01 and abs(flip["y"]) < 0.01 and abs(flip["z"]) < 0.01
     back = mcp_server.turn_tilt(mcp_server.turn_tilt(None, "x", 90), "x", -90)
     assert all(abs(v) < 0.01 for v in back.values())
+
+
+def test_tape_fields_are_checked():
+    assert mcp_server.tape_fields(1, -90, "up") == {"length": 5.0, "rotation": 270.0, "emit": "up"}
+    assert mcp_server.tape_fields(99999, None, None) == {"length": 2000.0}
+    assert mcp_server.tape_fields(None, None, None) == {}
+    with pytest.raises(ValueError):
+        mcp_server.tape_fields(None, None, "sideways")

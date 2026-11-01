@@ -6,10 +6,12 @@
 // about as brightly as daylight does.
 
 import * as THREE from 'three';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { findLightPreset, kelvinToRgb, lightPlacement } from '../core/lights.js';
 
 const LUMEN_SCALE = 0.02;
 const MAX_SHADOW_LIGHTS = 4; // point-light shadows render six times each
+const TAPE_GLOW_WIDTH = 0.02; // metres; wide enough for the area light to stay stable, and a tape's real size
 
 const TIMES = {
     //            sun azimuth/elevation (deg), colour, intensity; sky, ground, hemisphere; environment
@@ -24,6 +26,7 @@ const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3b3e, roughnes
 
 export class Lighting {
     constructor(scene, { hemi, sun }) {
+        RectAreaLightUniformsLib.init();
         this.scene = scene;
         this.hemi = hemi;
         this.sun = sun;
@@ -71,11 +74,12 @@ export class Lighting {
             const place = lightPlacement(light, ceilingHeight, pose);
             if (!place) continue; // its furniture was removed
             seen.add(light.id);
-            const castShadow = light.on && light.shadows && shadowBudget-- > 0;
+            const canShadow = findLightPreset(light.preset).kind !== 'strip';
+            const castShadow = canShadow && light.on && light.shadows && shadowBudget-- > 0;
             let entry = this.entries.get(light.id);
             if (light.id === frozenId && entry) continue;
             const key = JSON.stringify([light.preset, light.lumens, light.kelvin, light.on, castShadow,
-                light.id === selectedId, ceilingHeight, Math.round(place.height)]);
+                light.id === selectedId, ceilingHeight, Math.round(place.height), light.length, light.rotation, light.emit]);
             if (!entry || entry.key !== key) {
                 if (entry) this._dispose(entry.group);
                 entry = { group: this._fixture(light, ceilingHeight, castShadow, light.id === selectedId, place.height), key };
@@ -152,6 +156,9 @@ export class Lighting {
                 add(new THREE.CylinderGeometry(0.04, 0.05, 0.12, 24), metalMaterial, height + 0.04);
                 add(new THREE.CylinderGeometry(0.045, 0.045, 0.004, 24), glow, height - 0.02);
                 break;
+            case 'tape':
+                this._tape(group, add, light, colour, glow, height, selected);
+                return group;
             case 'bulb':
                 // Inside a piece of furniture: just a small glowing bulb.
                 add(new THREE.SphereGeometry(0.025, 16, 10), glow, height);
@@ -191,6 +198,35 @@ export class Lighting {
             }
         }
         return group;
+    }
+
+    /** A thin glowing strip, lighting one side with an area light. */
+    _tape(group, add, light, colour, glow, height, selected) {
+        const length = (light.length ?? 100) / 100;
+        const emit = light.emit ?? 'side';
+        const yaw = -THREE.MathUtils.degToRad(light.rotation ?? 0); // the plan's clockwise angle about +Y
+        const flat = emit !== 'side';
+        const strip = add(new THREE.BoxGeometry(length, flat ? 0.003 : 0.012, flat ? 0.012 : 0.003), glow, height);
+        strip.rotation.y = yaw;
+        // Too thin to click, so a wider invisible box takes the clicks in the 3D view.
+        add(new THREE.BoxGeometry(length, 0.06, 0.06), new THREE.MeshBasicMaterial({ visible: false }), height).rotation.y = yaw;
+        if (selected) {
+            const marker = add(new THREE.BoxGeometry(length + 0.04, 0.04, 0.04),
+                new THREE.MeshBasicMaterial({ color: 0x4f5bd5, wireframe: true, depthTest: false, transparent: true, opacity: 0.8 }), height);
+            marker.rotation.y = yaw;
+            marker.renderOrder = 10;
+        }
+        if (!light.on) return;
+        // Light given off = intensity × area × π, and lumens are per metre, so length cancels out.
+        const area = new THREE.RectAreaLight(colour, (light.lumens / (Math.PI * TAPE_GLOW_WIDTH)) * LUMEN_SCALE, length, TAPE_GLOW_WIDTH);
+        // An area light shines along its local −Z.
+        if (emit === 'side') area.rotation.y = Math.PI;
+        else area.rotation.x = emit === 'down' ? -Math.PI / 2 : Math.PI / 2;
+        const pivot = new THREE.Group();
+        pivot.position.y = height;
+        pivot.rotation.y = yaw;
+        pivot.add(area);
+        group.add(pivot);
     }
 
     _light(preset, light, colour) {

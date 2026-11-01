@@ -3,6 +3,9 @@
 //   { id, preset, x, y,        // plan position (cm)
 //     drop | height,           // cm below the ceiling / above the floor
 //     lumens, kelvin, on, shadows,
+//     length?, rotation?, emit? // tape light only: cm; degrees clockwise on the plan, 0 =
+//                              //   along +x; which way it shines. Its lumens are per metre,
+//                              //   as on a real tape's label, so it brightens as it lengthens.
 //     attach? }                // { furnitureId, dx, dy, dz }: a light inside a piece of
 //                              //   furniture (a lamp you generated). dx/dz are cm in the
 //                              //   item's own frame (dz = towards its front), dy = cm above
@@ -19,6 +22,7 @@ export const LIGHT_PRESETS = [
     { id: 'spot', mount: 'ceiling', drop: 20, lumens: 500, kelvin: 3000, kind: 'spot', angle: 35 },
     { id: 'floor', mount: 'floor', height: 150, lumens: 810, kelvin: 2700, kind: 'point' },
     { id: 'table', mount: 'floor', height: 65, lumens: 440, kelvin: 2700, kind: 'point' },
+    { id: 'tape', mount: 'free', height: 100, lumens: 500, kelvin: 3000, kind: 'strip', length: 100 },
     // Light source inside a piece of furniture; no fixture of its own.
     { id: 'bulb', mount: 'furniture', lumens: 810, kelvin: 2700, kind: 'point' },
 ];
@@ -27,6 +31,32 @@ export const LIGHT_PRESETS = [
 export const FIXTURE_PRESETS = LIGHT_PRESETS.filter(p => p.mount !== 'furniture');
 
 export const findLightPreset = id => LIGHT_PRESETS.find(p => p.id === id) ?? LIGHT_PRESETS[0];
+
+export const isTape = light => light.preset === 'tape';
+
+export const TAPE_MIN_CM = 5;
+export const TAPE_MAX_CM = 2000;
+/** Which way a tape shines. "side" is towards its front: 90° clockwise from its direction on the plan. */
+export const TAPE_EMITS = ['side', 'up', 'down'];
+
+export const clampTapeLength = cm => Math.round(Math.max(TAPE_MIN_CM, Math.min(TAPE_MAX_CM, cm)));
+export const normalizeDegrees = degrees => Math.round((((degrees % 360) + 360) % 360) * 10) / 10;
+
+/** The two ends of a tape centred on `centre` ({ x, y } plan cm). */
+export function tapeEnds(light, centre = light) {
+    const half = (light.length ?? 100) / 2;
+    const angle = ((light.rotation ?? 0) * Math.PI) / 180;
+    const along = { x: Math.cos(angle) * half, y: Math.sin(angle) * half };
+    return [{ x: centre.x - along.x, y: centre.y - along.y }, { x: centre.x + along.x, y: centre.y + along.y }];
+}
+
+/** Patch that stretches a tape between two points, or nothing if they are too close together. */
+export function tapeBetween(a, b) {
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length < TAPE_MIN_CM || length > TAPE_MAX_CM) return {};
+    const degrees = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, length: Math.round(length * 10) / 10, rotation: normalizeDegrees(degrees) };
+}
 
 export const TIMES_OF_DAY = ['morning', 'day', 'evening', 'night'];
 
@@ -46,7 +76,7 @@ export function lightHeight(light, ceilingHeight) {
     const preset = findLightPreset(light.preset);
     if (preset.mount === 'furniture') return light.attach?.dy ?? 100;
     if (preset.mount === 'ceiling') return Math.max(20, ceilingHeight - (light.drop ?? preset.drop));
-    return Math.min(light.height ?? preset.height, ceilingHeight - 5);
+    return Math.min(light.height ?? preset.height, ceilingHeight - (preset.mount === 'free' ? 1 : 5));
 }
 
 export function createLight(presetId, point) {
@@ -60,7 +90,8 @@ export function createLight(presetId, point) {
         lumens: preset.lumens,
         kelvin: preset.kelvin,
         on: true,
-        shadows: true,
+        shadows: preset.kind !== 'strip', // three.js area lights cannot cast shadows
+        ...(preset.kind === 'strip' ? { length: preset.length, rotation: 0, emit: 'side' } : {}),
     };
 }
 

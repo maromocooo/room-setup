@@ -477,6 +477,53 @@ try {
     await page.reload({ waitUntil: 'load' });
     await page.waitForFunction(() => document.querySelector('#saveProject')?.title === 'plan B.zip', { timeout: 15000 });
 
+    // LED tape: placed on the plan, its length set by number or by dragging an end.
+    await page.click('[data-view="plan"]');
+    await page.click('[data-tab="lights"]');
+    await page.click('[data-light-preset="tape"]');
+    const planPoint = world => page.evaluate(({ x, y }) => {
+        const { plan } = window.roomSetup;
+        const s = plan.toScreen({ x, y });
+        const box = plan.canvas.getBoundingClientRect();
+        return { x: box.left + s.x, y: box.top + s.y };
+    }, world);
+    const centre = await page.evaluate(() => window.roomSetup.plan.roomCentre());
+    const spot = { x: Math.round(centre.x / 10) * 10, y: Math.round(centre.y / 10) * 10 };
+    let target = await planPoint(spot);
+    await page.mouse.click(target.x, target.y);
+    const tape = () => page.evaluate(() => window.roomSetup.store.lights.find(l => l.preset === 'tape'));
+    let placed = await tape();
+    assert.deepEqual([placed.length, placed.rotation, placed.emit, placed.shadows], [100, 0, 'side', false]);
+    assert.equal(await page.$eval('#lightTapeFields', el => el.hidden), false);
+    assert.equal(await page.$eval('#lightShadowsRow', el => el.hidden), true, 'it cannot cast shadows, so no switch for that');
+    assert.match(await page.$eval('#lightTapeHint', el => el.textContent), /500 lm/);
+    assert.match(await page.$eval('#lightLumensValue', el => el.textContent), /500 lm\/m/);
+    await page.$eval('#lightLength', el => { el.focus(); el.select(); });
+    await page.keyboard.type('240');
+    await page.keyboard.press('Tab');
+    assert.equal((await tape()).length, 240);
+    assert.match(await page.$eval('#lightTapeHint', el => el.textContent), /1200 lm/, 'a longer tape gives more light');
+    assert.match(await page.$eval('#lightList', el => el.textContent), /2\.4 m · 500 lm\/m/);
+    await page.select('#lightEmit', 'up');
+    assert.equal((await tape()).emit, 'up');
+    target = await planPoint({ x: spot.x + 120, y: spot.y });
+    const further = await planPoint({ x: spot.x + 220, y: spot.y });
+    await page.mouse.move(target.x, target.y);
+    await page.mouse.down();
+    await page.mouse.move(further.x, further.y, { steps: 4 });
+    await page.mouse.up();
+    placed = await tape();
+    assert.deepEqual([placed.length, placed.x, placed.y], [340, spot.x + 50, spot.y], 'the other end stays put');
+    await step(page, '09-tape-plan');
+    await page.keyboard.down('Control'); await page.keyboard.press('z'); await page.keyboard.up('Control');
+    assert.equal((await tape()).length, 240, 'one drag is one undo');
+    await page.$eval('#lightRotation', el => { el.value = '-90'; el.dispatchEvent(new Event('change')); });
+    assert.equal((await tape()).rotation, 270);
+    await page.click('[data-view="room"]');
+    await page.waitForFunction(() => window.roomSetup.scene.lighting.objectFor(window.roomSetup.store.selectedLightId));
+    await step(page, '09-tape-3d');
+    await page.click('[data-view="plan"]');
+
     assert.deepEqual(errors, []);
     console.log('UI smoke test passed');
 } finally {

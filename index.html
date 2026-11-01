@@ -312,7 +312,20 @@
                         <label class="field"><span id="lightYLabel">Y</span><span class="input-unit"><input type="number" id="lightY" step="1"><em>cm</em></span></label>
                         <label class="field"><span id="lightHeightLabel"></span><span class="input-unit"><input type="number" id="lightHeight" min="0" step="1"><em>cm</em></span></label>
                     </div>
-                    <label class="toggle">
+                    <div id="lightTapeFields" class="field-group" hidden>
+                        <div class="field-grid two">
+                            <label class="field"><span data-i18n="light.length"></span><span class="input-unit"><input type="number" id="lightLength" step="1"><em>cm</em></span></label>
+                            <label class="field"><span data-i18n="light.rotation"></span><span class="input-unit"><input type="number" id="lightRotation" step="1"><em>°</em></span></label>
+                        </div>
+                        <label class="field"><span data-i18n="light.emit"></span>
+                            <select id="lightEmit" class="select">
+                                <option value="side" data-i18n="light.emit.side"></option>
+                                <option value="up" data-i18n="light.emit.up"></option>
+                                <option value="down" data-i18n="light.emit.down"></option>
+                            </select></label>
+                        <p class="hint" id="lightTapeHint"></p>
+                    </div>
+                    <label class="toggle" id="lightShadowsRow">
                         <input type="checkbox" id="lightShadows">
                         <span class="toggle-track"></span>
                         <span class="toggle-text"><strong data-i18n="light.shadows"></strong><small data-i18n="light.shadowsHint"></small></span>

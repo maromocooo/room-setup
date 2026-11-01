@@ -4,7 +4,7 @@
 // Version 3 (this app):
 //   walls[]      { start, end, finish? }            plan centimetres
 //   openings[]   { wall (index into walls), kind, preset, style, offset, width, height, sill, hinge, side }
-//   lights[]     { preset, x, y, drop | height, lumens, kelvin, on, shadows }    plus timeOfDay
+//   lights[]     { preset, x, y, drop | height, lumens, kelvin, on, shadows, length?, rotation?, emit? }    plus timeOfDay
 //   floor, wall  { finish, scale }                  finish = { preset } | { image: "<zip path>" }
 //                floor.direction: "vertical" when boards run along the plan's y axis (default: along x)
 //   furniture[]  { id, name, engine, dimensions, position (cm), rotation { y, x (deg) },
@@ -12,6 +12,7 @@
 // Version 2 and earlier came from the original Room Designer; parseProject
 // reads them too.
 
+import { TAPE_EMITS, clampTapeLength, normalizeDegrees } from '../core/lights.js';
 import { normalizeCurtain } from '../core/curtains.js';
 import { findPreset } from '../core/textures.js';
 
@@ -155,6 +156,9 @@ export function parseProject(data) {
             kelvin: finite(l.kelvin, 3000),
             on: l.on !== false,
             shadows: l.shadows !== false,
+            ...(Number.isFinite(l.length) ? { length: clampTapeLength(l.length) } : {}),
+            ...(Number.isFinite(l.rotation) ? { rotation: normalizeDegrees(l.rotation) } : {}),
+            ...(TAPE_EMITS.includes(l.emit) ? { emit: l.emit } : {}),
             ...(l.attach && typeof l.attach.furnitureId === 'string' ? {
                 attach: { furnitureId: l.attach.furnitureId, dx: finite(l.attach.dx, 0), dy: finite(l.attach.dy, 100), dz: finite(l.attach.dz, 0) },
             } : {}),

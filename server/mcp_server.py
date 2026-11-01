@@ -65,8 +65,22 @@ LIGHT_PRESETS = {
     "spot": ("ceiling", 20, 500, 3000),
     "floor": ("floor", 150, 810, 2700),
     "table": ("floor", 65, 440, 2700),
+    "tape": ("free", 100, 500, 3000),
     "bulb": ("furniture", 0, 810, 2700),
 }
+TAPE_MIN_CM, TAPE_MAX_CM = 5, 2000
+TAPE_EMITS = ("side", "up", "down")
+
+
+def tape_fields(length_cm: float | None, rotation_deg: float | None, emit: str | None) -> dict:
+    """The fields given, checked. Mirrors clampTapeLength and normalizeDegrees in src/core/lights.js."""
+    if emit is not None and emit not in TAPE_EMITS:
+        raise ValueError(f"emit must be one of {list(TAPE_EMITS)}.")
+    return {
+        **({"length": float(round(max(TAPE_MIN_CM, min(TAPE_MAX_CM, length_cm))))} if length_cm is not None else {}),
+        **({"rotation": round(float(rotation_deg) % 360, 1)} if rotation_deg is not None else {}),
+        **({"emit": emit} if emit is not None else {}),
+    }
 TIMES_OF_DAY = ["morning", "day", "evening", "night"]
 
 
@@ -278,6 +292,8 @@ def describe(document: dict) -> dict:
             **({"below_ceiling_cm": l.get("drop")} if LIGHT_PRESETS.get(l["preset"], ("ceiling",))[0] == "ceiling"
                else {"height_cm": l.get("height")} if not l.get("attach") else {}),
             "lumens": l["lumens"], "kelvin": l["kelvin"], "on": l.get("on", True), "shadows": l.get("shadows", True),
+            **({"length_cm": l.get("length"), "rotation_deg": l.get("rotation", 0), "emit": l.get("emit", "side"), "lumens_are_per_metre": True}
+               if l["preset"] == "tape" else {}),
         } for l in document.get("lights", [])],
         "furniture": [{
             "id": f["id"], "name": f.get("name"), "status": f.get("status", "ready"),
@@ -607,6 +623,9 @@ async def add_light(
     attach_to_furniture_id: str | None = None,
     offset_x_cm: float = 0,
     offset_front_cm: float = 0,
+    length_cm: float | None = None,
+    rotation_deg: float | None = None,
+    emit: str | None = None,
 ) -> dict:
     """Place a light fixture, or put a light source inside a piece of furniture.
 
@@ -616,7 +635,12 @@ async def add_light(
     default to off for these, since a closed lamp mesh would block its own light.
 
     preset: ceiling (シーリング, 3800 lm 5000 K), pendant (810 lm 2700 K, hangs 70 cm), downlight
-    (600 lm, recessed), spot (500 lm), floor (floor lamp, 150 cm), table (table lamp, 65 cm).
+    (600 lm, recessed), spot (500 lm), floor (floor lamp, 150 cm), table (table lamp, 65 cm),
+    tape (a straight LED tape, 100 cm long at 100 cm high, 500 lm per metre 3000 K).
+    A tape takes height_cm, length_cm (5 to 2000), rotation_deg (clockwise on the plan, 0 = along +x; x_cm and
+    y_cm are its centre) and emit: "side" (towards its front, 90 degrees clockwise from its direction: at 0
+    that is +y), "up" or "down". Its lumens are per metre. It casts no shadows, so its light also passes
+    through furniture and walls; aim it away from what should stay dark. For a corner, place two.
     kelvin: 2700 電球色 (warm), 3500 温白色, 5000 昼白色, 6500 昼光色 (cool).
     Ceiling-mounted lights take below_ceiling_cm (how far they hang); lamps take height_cm.
     At most four lights cast shadows at once.
@@ -643,6 +667,9 @@ async def add_light(
            else {"height": float(height_cm if height_cm is not None else offset)}),
         "lumens": float(lumens or default_lumens), "kelvin": float(kelvin or default_kelvin), "on": on, "shadows": shadows,
     }
+    if preset == "tape":
+        light.update({"length": 100.0, "rotation": 0.0, "emit": "side", "shadows": False})
+        light.update(tape_fields(length_cm, rotation_deg, emit))
     await mutate(lambda d: d.setdefault("lights", []).append(light))
     return light
 
@@ -658,8 +685,13 @@ async def update_light(
     height_cm: float | None = None,
     on: bool | None = None,
     shadows: bool | None = None,
+    length_cm: float | None = None,
+    rotation_deg: float | None = None,
+    emit: str | None = None,
 ) -> dict:
-    """Move a light, change its brightness or colour temperature, or switch it on/off."""
+    """Move a light, change its brightness or colour temperature, or switch it on/off.
+
+    A tape light also takes length_cm, rotation_deg and emit: see add_light."""
     def change(document):
         light = next((l for l in document.get("lights", []) if l["id"] == light_id), None)
         if not light:
@@ -680,6 +712,10 @@ async def update_light(
             light["on"] = on
         if shadows is not None:
             light["shadows"] = shadows
+        tape = tape_fields(length_cm, rotation_deg, emit)
+        if tape and light["preset"] != "tape":
+            raise ValueError("length_cm, rotation_deg and emit are for tape lights.")
+        light.update(tape)
         return light
     return await mutate(change)
 
