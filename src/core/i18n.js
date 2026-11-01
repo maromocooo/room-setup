@@ -3,7 +3,8 @@
 export const messages = {
     ja: {
         'view.label': '表示', 'view.plan': '間取り', 'view.room': '3D',
-        'project.open': '開く', 'project.save': '保存',
+        'project.open': '開く', 'project.save': '保存', 'project.saveAs': '名前をつけて保存', 'project.saveOptions': '保存のオプション',
+        'project.fileName': 'ファイル名', 'project.whereHint': '保存先はブラウザのダウンロード設定に従います。', 'project.fileType': 'Room Setup プロジェクト',
         'language.label': '言語', 'theme.toggle': 'ライト／ダーク切替',
 
         'plan.tools': '間取りツール',
@@ -136,7 +137,7 @@ export const messages = {
         'toast.generated': '「{name}」を部屋に置きました',
         'toast.textureFailed': 'テクスチャ生成に失敗したため、形状だけのモデルを置きました',
         'toast.textureUnavailable': 'このエンジンではテクスチャを生成できないため、形状だけのモデルを置きました',
-        'toast.saved': 'プロジェクトを保存しました', 'toast.saveFailed': '保存できませんでした: {message}',
+        'toast.saved': '{name}.zip を保存しました', 'toast.saveFailed': '保存できませんでした: {message}',
         'toast.opened': 'プロジェクトを開きました', 'toast.openPartial': 'プロジェクトを開きましたが、家具 {count} 点のモデルを読み込めませんでした',
         'toast.openFailed': '開けませんでした: {message}',
         'toast.projectMissing': 'ZIP に project.json がありません',
@@ -152,7 +153,8 @@ export const messages = {
     },
     en: {
         'view.label': 'View', 'view.plan': 'Plan', 'view.room': '3D',
-        'project.open': 'Open', 'project.save': 'Save',
+        'project.open': 'Open', 'project.save': 'Save', 'project.saveAs': 'Save as', 'project.saveOptions': 'Save options',
+        'project.fileName': 'File name', 'project.whereHint': 'Where it goes depends on your browser’s download settings.', 'project.fileType': 'Room Setup project',
         'language.label': 'Language', 'theme.toggle': 'Toggle light/dark',
 
         'plan.tools': 'Plan tools',
@@ -285,7 +287,7 @@ export const messages = {
         'toast.generated': 'Placed “{name}” in the room',
         'toast.textureFailed': 'Texturing failed, so the shape-only model was placed',
         'toast.textureUnavailable': 'This engine can’t texture, so the shape-only model was placed',
-        'toast.saved': 'Project saved', 'toast.saveFailed': 'Couldn’t save: {message}',
+        'toast.saved': 'Saved {name}.zip', 'toast.saveFailed': 'Couldn’t save: {message}',
         'toast.opened': 'Project opened', 'toast.openPartial': 'Project opened, but {count} furniture model(s) could not be loaded',
         'toast.openFailed': 'Couldn’t open: {message}',
         'toast.projectMissing': 'The ZIP has no project.json',

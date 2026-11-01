@@ -121,7 +121,7 @@ Then send it your room photos (from the middle of the room towards each corner),
 2. **Finishes** tab: choose flooring and wallpaper, adjust the pattern size, or use “+” for your own image. To change a single wall, select it in the plan and choose “Selected wall only”.
 3. **Furniture** tab: drop/paste a photo, enter its size, pick an engine and click **Generate 3D model**. You can queue several.
 4. Switch to **3D** to look around, click furniture to select it, and drag the gizmo. The inspector lets you rename, position, rotate, duplicate, delete or adjust the shape.
-5. **Save** downloads `room-project.zip`; **Open** restores it. While the API is running, the current room is also kept by the API and comes back after a reload. Without the API, nothing is saved automatically.
+5. **Save** downloads the project as a ZIP (`room-project.zip` until you name it), and **Save as** in the arrow menu next to it lets you choose the name. **Open** restores it. Later saves keep the name of the file you saved or opened. While the API is running, the current room is also kept by the API and comes back after a reload. Without the API, nothing is saved automatically.
 
 | Shortcut | Action |
 |---|---|
@@ -133,6 +133,7 @@ Then send it your room photos (from the middle of the room towards each corner),
 | `R` / `Shift+R` | Rotate the selected furniture by 90° |
 | `Delete` | Delete the selected furniture or wall |
 | `Ctrl+S` | Save the project |
+| `Ctrl+Shift+S` | Save as |
 | `Esc` | Cancel / deselect |
 
 ## How it fits together

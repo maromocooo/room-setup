@@ -394,6 +394,89 @@ try {
     await step(page, '08-plan-dark');
     assert.equal(await page.$$eval('#furnitureList li', els => els.length), 1);
 
+    // Save as: the name dialog where the browser has no save dialog of its own.
+    await page.evaluate(() => {
+        window.showSaveFilePicker = undefined;
+        window.downloads = [];
+        HTMLAnchorElement.prototype.click = function () { if (this.download) window.downloads.push(this.download); };
+    });
+    const saved = () => page.evaluate(() => window.downloads);
+    const saveAs = async () => { await page.click('#saveMenuToggle'); await page.click('#saveProjectAs'); };
+    const menuOpen = () => page.$eval('#saveMenu', el => !el.hidden);
+    await page.click('#saveMenuToggle');
+    assert.equal(await menuOpen(), true);
+    await step(page, '08-save-menu');
+    await page.keyboard.press('Escape');
+    assert.equal(await menuOpen(), false, 'Esc closes the menu');
+    await page.click('#saveMenuToggle');
+    await page.mouse.click(300, 400);
+    assert.equal(await menuOpen(), false, 'clicking elsewhere closes the menu');
+    assert.deepEqual(await saved(), [], 'opening the menu saves nothing');
+    const savedCount = async count => page.waitForFunction(n => window.downloads.length === n, { timeout: 15000 }, count);
+    await saveAs();
+    await page.waitForSelector('#saveAsDialog[open]');
+    await step(page, '08-save-as');
+    await page.keyboard.type('a/b.zip'); // replaces the selected name
+    await page.click('#saveAsCancel');
+    assert.deepEqual(await saved(), [], 'cancel saves nothing');
+    await saveAs();
+    assert.equal(await page.$eval('#saveAsName', el => el.value), 'room-project', 'cancel keeps the old name');
+    await page.keyboard.type('...');
+    assert.equal(await page.$eval('#saveAsSubmit', el => el.disabled), true, 'no usable name, no saving');
+    await page.keyboard.down('Control'); await page.keyboard.press('a'); await page.keyboard.up('Control');
+    await page.keyboard.type('a/b.zip');
+    await page.keyboard.press('Enter');
+    await savedCount(1);
+    assert.deepEqual(await saved(), ['a-b.zip']);
+    await page.click('#saveProject');
+    await savedCount(2);
+    assert.deepEqual(await saved(), ['a-b.zip', 'a-b.zip'], 'Save keeps the chosen name');
+
+    // Where the browser has a save dialog, Save as uses it and Save writes that same file.
+    await page.evaluate(() => {
+        window.written = 0;
+        window.showSaveFilePicker = async ({ suggestedName }) => {
+            window.suggested = suggestedName;
+            return { name: 'picked.zip', createWritable: async () => ({ write: async blob => { window.written += blob.size > 0 ? 1 : 0; }, close: async () => {} }) };
+        };
+    });
+    await saveAs();
+    await page.waitForFunction(() => window.written === 1, { timeout: 15000 });
+    assert.equal(await page.evaluate(() => window.suggested), 'a-b.zip');
+    await page.click('#saveProject');
+    await page.waitForFunction(() => window.written === 2, { timeout: 15000 });
+    assert.equal((await saved()).length, 2, 'nothing downloaded');
+
+    // Cancelling that dialog does nothing.
+    await page.evaluate(() => { window.showSaveFilePicker = async () => { throw new DOMException('cancelled', 'AbortError'); }; });
+    await saveAs();
+    await page.waitForFunction(() => document.querySelector('#saveProject').title === 'picked.zip');
+
+    // An opened file gives its name, and Save stops writing to the earlier file.
+    await page.evaluate(async () => {
+        const { saveProject } = await import('/src/project/project-io.js');
+        const blob = await saveProject(window.roomSetup.store);
+        const input = document.querySelector('#openProjectInput');
+        const files = new DataTransfer();
+        files.items.add(new File([blob], 'plan B(11).zip', { type: 'application/zip' }));
+        input.files = files.files;
+        input.dispatchEvent(new Event('change'));
+    });
+    await page.waitForFunction(() => document.querySelector('#saveProject').title === 'plan B.zip', { timeout: 15000 });
+    await page.keyboard.down('Control'); await page.keyboard.press('s'); await page.keyboard.up('Control');
+    await savedCount(3);
+    assert.equal((await saved())[2], 'plan B.zip');
+    await page.evaluate(() => { window.showSaveFilePicker = undefined; });
+    await page.keyboard.down('Control'); await page.keyboard.down('Shift'); await page.keyboard.press('s');
+    await page.keyboard.up('Shift'); await page.keyboard.up('Control');
+    await page.waitForSelector('#saveAsDialog[open]');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => window.written), 2);
+
+    // The name survives a reload, because the room does too.
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelector('#saveProject')?.title === 'plan B.zip', { timeout: 15000 });
+
     assert.deepEqual(errors, []);
     console.log('UI smoke test passed');
 } finally {

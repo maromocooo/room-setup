@@ -29,7 +29,13 @@
 
         <div class="topbar-actions">
             <button type="button" class="btn ghost" id="openProject"><i data-icon="open"></i><span data-i18n="project.open"></span></button>
-            <button type="button" class="btn" id="saveProject"><i data-icon="save"></i><span data-i18n="project.save"></span></button>
+            <div class="split-btn" id="saveSplit">
+                <button type="button" class="btn" id="saveProject"><i data-icon="save"></i><span data-i18n="project.save"></span></button>
+                <button type="button" class="btn split-caret" id="saveMenuToggle" aria-haspopup="menu" aria-expanded="false" data-i18n-title="project.saveOptions" data-i18n-aria-label="project.saveOptions"><i data-icon="chevronDown"></i></button>
+                <div class="split-menu" id="saveMenu" role="menu" hidden>
+                    <button type="button" role="menuitem" id="saveProjectAs"><span data-i18n="project.saveAs"></span><kbd>Ctrl+Shift+S</kbd></button>
+                </div>
+            </div>
             <input type="file" id="openProjectInput" accept=".zip,application/zip" hidden>
             <span class="topbar-divider"></span>
             <select id="languageSelect" class="select compact" data-i18n-aria-label="language.label">
@@ -421,6 +427,20 @@
 
     <div class="toasts" id="toasts" aria-live="polite"></div>
 </div>
+
+<dialog class="save-as" id="saveAsDialog">
+    <form id="saveAsForm">
+        <h2 data-i18n="project.saveAs"></h2>
+        <label class="field"><span data-i18n="project.fileName"></span>
+            <span class="input-unit"><input type="text" id="saveAsName" maxlength="120" autocomplete="off" spellcheck="false"><em>.zip</em></span>
+        </label>
+        <p class="save-as-hint" data-i18n="project.whereHint"></p>
+        <div class="save-as-actions">
+            <button type="button" class="btn ghost" id="saveAsCancel" data-i18n="common.cancel"></button>
+            <button type="submit" class="btn primary" id="saveAsSubmit" data-i18n="project.save"></button>
+        </div>
+    </form>
+</dialog>
 
 <dialog class="mesh-editor" id="meshEditor">
     <div class="mesh-editor-body">

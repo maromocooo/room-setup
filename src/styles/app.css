@@ -870,6 +870,54 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 
 /* ---------- mesh editor ---------- */
 
+.split-btn { position: relative; display: flex; }
+.split-btn #saveProject { border-radius: 8px 0 0 8px; }
+.topbar-actions .split-caret { margin-left: -1px; padding: 0 6px; border-radius: 0 8px 8px 0; }
+.split-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 20;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+}
+.split-menu[hidden] { display: none; }
+.split-menu button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 550;
+    white-space: nowrap;
+}
+.split-menu button:hover, .split-menu button:focus-visible { background: var(--surface-3); }
+.split-menu kbd { font: inherit; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+
+.save-as {
+    width: min(420px, calc(100vw - 32px));
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+}
+.save-as::backdrop { background: rgba(0, 0, 0, .4); }
+.save-as form { display: flex; flex-direction: column; gap: 12px; }
+.save-as h2 { margin: 0; font-size: 15px; }
+.save-as-hint { margin: 0; font-size: 12px; color: var(--text-muted); }
+.save-as-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
 .mesh-editor {
     width: min(1100px, 94vw);
     height: min(720px, 90vh);

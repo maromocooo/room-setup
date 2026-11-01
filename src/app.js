@@ -10,6 +10,7 @@ import { cloneFurnitureObject, disposeObject, turnFurniture, setTilt } from './s
 import { TILT_TURNS, turnTilt } from './core/tilt.js';
 import { createAttachedLight, lightPlacement, movePatch } from './core/lights.js';
 import { downloadBlob, openProject, saveProject } from './project/project-io.js';
+import { DEFAULT_PROJECT_NAME, cleanProjectName, nameFromFile } from './project/file-name.js';
 import { hydrateIcons, icon } from './ui/icons.js';
 import { createToasts } from './ui/toasts.js';
 import { setupRoomPanel } from './ui/room-panel.js';
@@ -314,15 +315,89 @@ export function startApp() {
     }
 
     // ---- project files ----
-    $('saveProject').addEventListener('click', async () => {
+    const PROJECT_NAME_KEY = 'room-setup-project-name';
+    let projectName = DEFAULT_PROJECT_NAME;
+    try { projectName = localStorage.getItem(PROJECT_NAME_KEY) || projectName; } catch { /* storage disabled */ }
+    let projectFile = null; // the file chosen in the browser's own dialog, where it has one
+    function setProjectName(name) {
+        projectName = name;
+        $('saveProject').title = `${name}.zip`;
+        try { localStorage.setItem(PROJECT_NAME_KEY, name); } catch { /* storage disabled */ }
+    }
+    setProjectName(projectName);
+
+    async function writeProject(name, file) {
         try {
-            downloadBlob(await saveProject(store), 'room-project.zip');
+            const blob = await saveProject(store);
+            if (file) {
+                const writable = await file.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                downloadBlob(blob, `${name}.zip`);
+            }
+            setProjectName(name);
+            projectFile = file;
             store.dirty = false;
-            toast(t('toast.saved'), { type: 'success' });
+            toast(t('toast.saved', { name }), { type: 'success' });
         } catch (error) {
             console.error(error);
+            if (file) projectFile = null; // the next Save downloads rather than failing again
             toast(t('toast.saveFailed', { message: error.message }), { type: 'error' });
         }
+    }
+
+    $('saveProject').addEventListener('click', () => writeProject(projectName, projectFile));
+    function showSaveMenu(show) {
+        $('saveMenu').hidden = !show;
+        $('saveMenuToggle').setAttribute('aria-expanded', String(show));
+    }
+    $('saveMenuToggle').addEventListener('click', () => {
+        showSaveMenu($('saveMenu').hidden);
+        if (!$('saveMenu').hidden) $('saveProjectAs').focus();
+    });
+    window.addEventListener('pointerdown', e => {
+        if (!$('saveSplit').contains(e.target)) showSaveMenu(false);
+    }, true);
+    $('saveSplit').addEventListener('keydown', e => {
+        if (e.key !== 'Escape' || $('saveMenu').hidden) return;
+        e.stopPropagation();
+        showSaveMenu(false);
+        $('saveMenuToggle').focus();
+    });
+    $('saveProjectAs').addEventListener('click', async () => {
+        showSaveMenu(false);
+        if (typeof window.showSaveFilePicker !== 'function') { // Firefox and Safari
+            $('saveAsName').value = projectName;
+            $('saveAsSubmit').disabled = false;
+            $('saveAsDialog').showModal();
+            $('saveAsName').select();
+            return;
+        }
+        let file;
+        try {
+            file = await window.showSaveFilePicker({
+                suggestedName: `${projectName}.zip`,
+                types: [{ description: t('project.fileType'), accept: { 'application/zip': ['.zip'] } }],
+            });
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            console.error(error);
+            toast(t('toast.saveFailed', { message: error.message }), { type: 'error' });
+            return;
+        }
+        writeProject(cleanProjectName(file.name) || DEFAULT_PROJECT_NAME, file);
+    });
+    $('saveAsName').addEventListener('input', e => {
+        $('saveAsSubmit').disabled = !cleanProjectName(e.target.value);
+    });
+    $('saveAsCancel').addEventListener('click', () => $('saveAsDialog').close());
+    $('saveAsForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = cleanProjectName($('saveAsName').value);
+        if (!name) return;
+        $('saveAsDialog').close();
+        writeProject(name, null);
     });
     $('openProject').addEventListener('click', () => $('openProjectInput').click());
     $('openProjectInput').addEventListener('change', async e => {
@@ -357,6 +432,8 @@ export function startApp() {
             store.emit('lighting');
             store.emit('furniture');
             store.dirty = false;
+            setProjectName(nameFromFile(file.name));
+            projectFile = null;
             plan.fit();
             scene.requestFraming();
             updateUndo();
@@ -371,11 +448,11 @@ export function startApp() {
 
     // ---- keyboard ----
     window.addEventListener('keydown', e => {
-        if (isTyping(e) || $('meshEditor').open) return;
+        if (isTyping(e) || $('meshEditor').open || $('saveAsDialog').open) return;
         const mod = e.ctrlKey || e.metaKey;
         if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
         if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-        if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); $('saveProject').click(); return; }
+        if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); $(e.shiftKey ? 'saveProjectAs' : 'saveProject').click(); return; }
         if (mod || e.altKey) return;
         const key = e.key.toLowerCase();
         if (view === 'plan' && key === 'w') setTool('wall');
